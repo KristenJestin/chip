@@ -1,3 +1,4 @@
+import { writeFile } from "fs/promises";
 import { Command } from "@commander-js/extra-typings";
 import { type Db, getDb } from "../db/client";
 import { features } from "../db/schema";
@@ -59,6 +60,82 @@ export async function getFeatureDetails(db: Db, featureId: string): Promise<Feat
 
   const { phases: featurePhases, logs: recentLogs, ...feature } = result;
   return { feature, phases: featurePhases, recentLogs };
+}
+
+export async function exportFeature(db: Db, featureId: string): Promise<string> {
+  const result = await db.query.features.findFirst({
+    where: { id: featureId },
+    with: {
+      phases: {
+        orderBy: { order: "asc" },
+        with: { tasks: { orderBy: { order: "asc" } } },
+      },
+      logs: { orderBy: { createdAt: "asc" } },
+    },
+  });
+
+  if (!result) throw new Error(`Feature not found: ${featureId}`);
+
+  const lines: string[] = [];
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+  lines.push(`# ${result.title}`);
+  lines.push("");
+  lines.push(`**ID:** ${result.id}  `);
+  lines.push(`**Status:** ${result.status}  `);
+  if (result.description) lines.push(`**Description:** ${result.description}  `);
+  lines.push(`**Created:** ${formatDate(result.createdAt)}  `);
+  if (result.updatedAt !== result.createdAt) {
+    lines.push(`**Updated:** ${formatDate(result.updatedAt)}  `);
+  }
+  lines.push("");
+
+  // ── Phases ───────────────────────────────────────────────────────────────────
+  if (result.phases.length > 0) {
+    lines.push("## Phases");
+    lines.push("");
+    for (const phase of result.phases) {
+      lines.push(`### ${phase.order}. ${phase.title} \`[${phase.status}]\``);
+      lines.push("");
+      if (phase.description) {
+        lines.push(phase.description);
+        lines.push("");
+      }
+      if (phase.startedAt != null) lines.push(`**Started:** ${formatDate(phase.startedAt)}  `);
+      if (phase.completedAt != null)
+        lines.push(`**Completed:** ${formatDate(phase.completedAt)}  `);
+      if (phase.startedAt != null || phase.completedAt != null) lines.push("");
+
+      if (phase.tasks.length > 0) {
+        for (const task of phase.tasks) {
+          const check = task.status === "done" ? "x" : " ";
+          const desc = task.description ? ` — ${task.description}` : "";
+          lines.push(`- [${check}] **${task.title}** \`[${task.status}]\`${desc}`);
+        }
+        lines.push("");
+      }
+    }
+  }
+
+  // ── Logs ─────────────────────────────────────────────────────────────────────
+  if (result.logs.length > 0) {
+    lines.push("## Logs");
+    lines.push("");
+    for (const log of result.logs) {
+      const ctx = [
+        log.phaseId != null ? `phase ${log.phaseId}` : null,
+        log.taskId != null ? `task ${log.taskId}` : null,
+        log.source ?? null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      const ctxStr = ctx ? ` _(${ctx})_` : "";
+      lines.push(`- \`${formatDateTime(log.createdAt)}\`${ctxStr} ${log.message}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
 }
 
 // ── Commander registration ────────────────────────────────────────────────────
@@ -174,6 +251,27 @@ export function registerFeatureCommands(program: Command): void {
           const src = log.source ? `[${log.source}] ` : "";
           console.log(`  ${formatDateTime(log.createdAt)}  ${src}${log.message}`);
         }
+      }
+    });
+
+  // ── feature export ───────────────────────────────────────────────────────────
+  featureCmd
+    .command("export")
+    .description("Export a feature as markdown")
+    .argument("<feature-id>", "Feature ID")
+    .option("-o, --output <file>", "Write output to a file instead of stdout")
+    .action(async (featureId, options) => {
+      const db = await getDb();
+      try {
+        const markdown = await exportFeature(db, featureId);
+        if (options.output) {
+          await writeFile(options.output, markdown, "utf-8");
+          console.log(`Exported to ${options.output}`);
+        } else {
+          process.stdout.write(markdown);
+        }
+      } catch (err) {
+        die(errMsg(err));
       }
     });
 }

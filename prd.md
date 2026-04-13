@@ -127,14 +127,14 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 - [x] Implémenter `chip log list <feature-id>` — affichage chronologique avec filtres optionnels
 - [x] Valider que les transitions de statut horodatent correctement `startedAt` et `completedAt`
 
-### [ ] Phase 3 — Export et commande OpenCode
+### [x] Phase 3 — Export et commande OpenCode
 
 **Objectif :** Un humain peut lire l'état d'une feature en markdown propre. Les agents OpenCode ont une référence concise et fiable du CLI.
 **Critères de complétion :** `chip export` produit un markdown lisible. La commande OpenCode `/chip` donne à l'agent exactement ce qu'il faut pour utiliser le CLI sans documentation supplémentaire.
 
-- [ ] Implémenter `chip feature export <feature-id>` — génère un markdown complet (feature, phases, tâches avec statuts et timestamps, logs) dans stdout ou dans un fichier optionnel
-- [ ] Écrire la commande OpenCode `.opencode/commands/chip.md` — référence statique et concise de toutes les commandes, avec exemples, sans sortie `--help` brute (trop verbeux pour un agent)
-- [ ] Écrire un `README.md` du projet CLI complet
+- [x] Implémenter `chip feature export <feature-id>` — génère un markdown complet (feature, phases, tâches avec statuts et timestamps, logs) dans stdout ou dans un fichier optionnel
+- [x] Écrire la commande OpenCode `.opencode/commands/chip.md` — référence statique et concise de toutes les commandes, avec exemples, sans sortie `--help` brute (trop verbeux pour un agent)
+- [x] Écrire un `README.md` du projet CLI complet
 
 ### [ ] Phase 4 — Publication et install
 
