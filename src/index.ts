@@ -2,6 +2,7 @@ import { Command } from "@commander-js/extra-typings";
 import { registerFeatureCommands } from "./commands/feature";
 import { registerPhaseCommands } from "./commands/phase";
 import { registerTaskCommands } from "./commands/task";
+import { registerLogCommands } from "./commands/log";
 
 const program = new Command()
   .name("chip")
@@ -11,5 +12,6 @@ const program = new Command()
 registerFeatureCommands(program);
 registerPhaseCommands(program);
 registerTaskCommands(program);
+registerLogCommands(program);
 
 program.parseAsync(process.argv);

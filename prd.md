@@ -116,16 +116,16 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 - [x] Implémenter `chip task add <feature-id> <phase-id> <title> [description]`
 - [x] Configurer tsup pour produire un binaire avec shebang correct
 
-### [ ] Phase 2 — Gestion des statuts et journalisation
+### [x] Phase 2 — Gestion des statuts et journalisation
 
 **Objectif :** Les agents peuvent piloter entièrement le cycle de vie d'une feature depuis le terminal.
 **Critères de complétion :** Un agent peut créer une feature, cocher des tâches, changer les statuts de phases et logger des événements — tout est persisté avec horodatage correct dans la BDD.
 
-- [ ] Implémenter `chip phase status <feature-id> <phase-id> <status>` — met à jour le statut avec horodatage automatique
-- [ ] Implémenter `chip task status <feature-id> <phase-id> <task-id> <status>` — idem
-- [ ] Implémenter `chip log add <feature-id> <message> [--phase <id>] [--task <id>] [--source <cmd>]`
-- [ ] Implémenter `chip log list <feature-id>` — affichage chronologique avec filtres optionnels
-- [ ] Valider que les transitions de statut horodatent correctement `startedAt` et `completedAt`
+- [x] Implémenter `chip phase status <feature-id> <phase-id> <status>` — met à jour le statut avec horodatage automatique
+- [x] Implémenter `chip task status <feature-id> <phase-id> <task-id> <status>` — idem
+- [x] Implémenter `chip log add <feature-id> <message> [--phase <id>] [--task <id>] [--source <cmd>]`
+- [x] Implémenter `chip log list <feature-id>` — affichage chronologique avec filtres optionnels
+- [x] Valider que les transitions de statut horodatent correctement `startedAt` et `completedAt`
 
 ### [ ] Phase 3 — Export et commande OpenCode
 

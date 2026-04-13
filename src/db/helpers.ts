@@ -31,6 +31,21 @@ export async function assertPhaseExists(db: Db, phaseId: number, featureId: stri
     throw new Error(`Phase ${phaseId} does not belong to feature ${featureId}`);
 }
 
+// ── Task guards ───────────────────────────────────────────────────────────────
+
+/**
+ * Throws if the task does not exist or does not belong to the given phase.
+ */
+export async function assertTaskExists(db: Db, taskId: number, phaseId: number): Promise<void> {
+  const row = await db.query.tasks.findFirst({
+    where: { id: taskId },
+    columns: { id: true, phaseId: true },
+  });
+  if (!row) throw new Error(`Task not found: ${taskId}`);
+  if (row.phaseId !== phaseId)
+    throw new Error(`Task ${taskId} does not belong to phase ${phaseId}`);
+}
+
 // ── Order helpers ─────────────────────────────────────────────────────────────
 
 /** Returns the next `order` value for a new phase inside a feature. */
