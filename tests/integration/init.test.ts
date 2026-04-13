@@ -18,7 +18,7 @@ describe("getChipDir", () => {
     const result = getChipDir();
 
     // Assert
-    expect(result).toBe("/some/project/.chip");
+    expect(result).toBe(path.join("/some/project", ".chip"));
   });
 });
 
@@ -31,7 +31,7 @@ describe("getDbPath", () => {
     const result = getDbPath();
 
     // Assert
-    expect(result).toBe("/some/project/.chip/chip.db");
+    expect(result).toBe(path.join("/some/project", ".chip", "chip.db"));
   });
 });
 

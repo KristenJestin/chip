@@ -42,9 +42,7 @@ function handleGitignore(): void {
   if (!fs.existsSync(gitignorePath)) return;
 
   const content = fs.readFileSync(gitignorePath, "utf-8");
-  const already = content
-    .split("\n")
-    .some((l) => l.trim() === ".chip/" || l.trim() === ".chip");
+  const already = content.split("\n").some((l) => l.trim() === ".chip/" || l.trim() === ".chip");
 
   if (already) return;
 

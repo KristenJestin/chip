@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "025f3c52-575e-421c-b2f7-2fdbc2d0538c",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
       "name": "features",
@@ -333,13 +331,9 @@
       "table": "tasks"
     },
     {
-      "columns": [
-        "feature_id"
-      ],
+      "columns": ["feature_id"],
       "tableTo": "features",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -348,13 +342,9 @@
       "table": "logs"
     },
     {
-      "columns": [
-        "feature_id"
-      ],
+      "columns": ["feature_id"],
       "tableTo": "features",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -363,13 +353,9 @@
       "table": "phases"
     },
     {
-      "columns": [
-        "phase_id"
-      ],
+      "columns": ["phase_id"],
       "tableTo": "phases",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -378,36 +364,28 @@
       "table": "tasks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "features_pk",
       "table": "features",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "logs_pk",
       "table": "logs",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "phases_pk",
       "table": "phases",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "tasks_pk",
       "table": "tasks",

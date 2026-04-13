@@ -1,11 +1,11 @@
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import path from "node:path";
-import * as schema from "./schema";
+import { relations } from "./relations";
 import { getDbPath, ensureInit } from "../utils/init";
 
 function makeDb(url: string) {
-  return drizzle({ connection: { url }, schema });
+  return drizzle({ connection: { url }, relations });
 }
 
 export type Db = ReturnType<typeof makeDb>;

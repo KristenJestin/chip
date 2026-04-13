@@ -14,7 +14,7 @@ export async function addPhase(
   db: Db,
   featureId: string,
   title: string,
-  description?: string
+  description?: string,
 ): Promise<Phase> {
   await assertFeatureExists(db, featureId);
 

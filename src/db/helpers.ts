@@ -1,6 +1,6 @@
 import { eq, max } from "drizzle-orm";
 import { type Db } from "./client";
-import { features, phases, tasks } from "./schema";
+import { phases, tasks } from "./schema";
 
 // ── Feature guards ────────────────────────────────────────────────────────────
 
@@ -9,11 +9,10 @@ import { features, phases, tasks } from "./schema";
  * Used by phase and task services before operating on child records.
  */
 export async function assertFeatureExists(db: Db, featureId: string): Promise<void> {
-  const row = await db
-    .select({ id: features.id })
-    .from(features)
-    .where(eq(features.id, featureId))
-    .get();
+  const row = await db.query.features.findFirst({
+    where: { id: featureId },
+    columns: { id: true },
+  });
   if (!row) throw new Error(`Feature not found: ${featureId}`);
 }
 
@@ -22,16 +21,11 @@ export async function assertFeatureExists(db: Db, featureId: string): Promise<vo
 /**
  * Throws if the phase does not exist or does not belong to the given feature.
  */
-export async function assertPhaseExists(
-  db: Db,
-  phaseId: number,
-  featureId: string
-): Promise<void> {
-  const row = await db
-    .select({ id: phases.id, featureId: phases.featureId })
-    .from(phases)
-    .where(eq(phases.id, phaseId))
-    .get();
+export async function assertPhaseExists(db: Db, phaseId: number, featureId: string): Promise<void> {
+  const row = await db.query.phases.findFirst({
+    where: { id: phaseId },
+    columns: { id: true, featureId: true },
+  });
   if (!row) throw new Error(`Phase not found: ${phaseId}`);
   if (row.featureId !== featureId)
     throw new Error(`Phase ${phaseId} does not belong to feature ${featureId}`);

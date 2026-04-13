@@ -89,7 +89,7 @@ describe("getFeatureDetails", () => {
 
     // Act & Assert
     await expect(getFeatureDetails(db, "nonexistent")).rejects.toThrow(
-      "Feature not found: nonexistent"
+      "Feature not found: nonexistent",
     );
   });
 
@@ -103,7 +103,7 @@ describe("getFeatureDetails", () => {
 
     // Assert
     expect(details.feature.id).toBe(id);
-    expect(details.featurePhases).toHaveLength(0);
+    expect(details.phases).toHaveLength(0);
     expect(details.recentLogs).toHaveLength(0);
   });
 });

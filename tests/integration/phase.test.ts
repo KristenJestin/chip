@@ -53,7 +53,7 @@ describe("addPhase", () => {
 
     // Act & Assert
     await expect(addPhase(db, "nonexistent", "Phase")).rejects.toThrow(
-      "Feature not found: nonexistent"
+      "Feature not found: nonexistent",
     );
   });
 });

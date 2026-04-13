@@ -15,7 +15,7 @@ export async function addTask(
   featureId: string,
   phaseId: number,
   title: string,
-  description?: string
+  description?: string,
 ): Promise<Task> {
   await assertFeatureExists(db, featureId);
   await assertPhaseExists(db, phaseId, featureId);

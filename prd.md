@@ -49,54 +49,54 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 
 ### Feature
 
-| Champ       | Type    | Description                                 |
-|-------------|---------|---------------------------------------------|
-| id          | text PK | Slug kebab-case généré depuis le titre      |
-| title       | text    | Titre                                       |
-| description | text    | Description libre                           |
-| status      | text    | `active` \| `done` \| `archived`           |
-| createdAt   | integer | Timestamp Unix                              |
-| updatedAt   | integer | Timestamp Unix                              |
+| Champ       | Type    | Description                            |
+| ----------- | ------- | -------------------------------------- |
+| id          | text PK | Slug kebab-case généré depuis le titre |
+| title       | text    | Titre                                  |
+| description | text    | Description libre                      |
+| status      | text    | `active` \| `done` \| `archived`       |
+| createdAt   | integer | Timestamp Unix                         |
+| updatedAt   | integer | Timestamp Unix                         |
 
 ### Phase
 
-| Champ       | Type     | Description                                                        |
-|-------------|----------|--------------------------------------------------------------------|
-| id          | integer PK | Auto-incrément                                                   |
-| featureId   | text FK  | Référence feature                                                  |
-| order       | integer  | Ordre d'affichage                                                  |
-| title       | text     | Titre                                                              |
-| description | text     | Description / critères de complétion                               |
-| status      | text     | `todo` \| `in-progress` \| `review` \| `done`                    |
-| createdAt   | integer  | Timestamp Unix                                                     |
-| startedAt   | integer  | Timestamp Unix — renseigné au passage en `in-progress`             |
-| completedAt | integer  | Timestamp Unix — renseigné au passage en `done`                    |
+| Champ       | Type       | Description                                            |
+| ----------- | ---------- | ------------------------------------------------------ |
+| id          | integer PK | Auto-incrément                                         |
+| featureId   | text FK    | Référence feature                                      |
+| order       | integer    | Ordre d'affichage                                      |
+| title       | text       | Titre                                                  |
+| description | text       | Description / critères de complétion                   |
+| status      | text       | `todo` \| `in-progress` \| `review` \| `done`          |
+| createdAt   | integer    | Timestamp Unix                                         |
+| startedAt   | integer    | Timestamp Unix — renseigné au passage en `in-progress` |
+| completedAt | integer    | Timestamp Unix — renseigné au passage en `done`        |
 
 ### Task
 
-| Champ       | Type     | Description                                                        |
-|-------------|----------|--------------------------------------------------------------------|
-| id          | integer PK | Auto-incrément                                                   |
-| phaseId     | integer FK | Référence phase                                                  |
-| order       | integer  | Ordre d'affichage                                                  |
-| title       | text     | Titre                                                              |
-| description | text     | Description courte                                                 |
-| status      | text     | `todo` \| `in-progress` \| `review` \| `done`                    |
-| createdAt   | integer  | Timestamp Unix                                                     |
-| startedAt   | integer  | Timestamp Unix                                                     |
-| completedAt | integer  | Timestamp Unix                                                     |
+| Champ       | Type       | Description                                   |
+| ----------- | ---------- | --------------------------------------------- |
+| id          | integer PK | Auto-incrément                                |
+| phaseId     | integer FK | Référence phase                               |
+| order       | integer    | Ordre d'affichage                             |
+| title       | text       | Titre                                         |
+| description | text       | Description courte                            |
+| status      | text       | `todo` \| `in-progress` \| `review` \| `done` |
+| createdAt   | integer    | Timestamp Unix                                |
+| startedAt   | integer    | Timestamp Unix                                |
+| completedAt | integer    | Timestamp Unix                                |
 
 ### Log
 
-| Champ     | Type     | Description                                       |
-|-----------|----------|---------------------------------------------------|
-| id        | integer PK | Auto-incrément                                  |
-| featureId | text FK  | Référence feature                                 |
-| phaseId   | integer  | Optionnel — référence phase                       |
-| taskId    | integer  | Optionnel — référence tâche                       |
-| source    | text     | Commande à l'origine (`/dev`, `/review`, etc.)    |
-| message   | text     | Message court et factuel                          |
-| createdAt | integer  | Timestamp Unix                                    |
+| Champ     | Type       | Description                                    |
+| --------- | ---------- | ---------------------------------------------- |
+| id        | integer PK | Auto-incrément                                 |
+| featureId | text FK    | Référence feature                              |
+| phaseId   | integer    | Optionnel — référence phase                    |
+| taskId    | integer    | Optionnel — référence tâche                    |
+| source    | text       | Commande à l'origine (`/dev`, `/review`, etc.) |
+| message   | text       | Message court et factuel                       |
+| createdAt | integer    | Timestamp Unix                                 |
 
 ## 6. Phases & Tâches
 
@@ -157,12 +157,12 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 
 ## 8. Risques & Questions ouvertes
 
-| Sujet | Impact estimé | Statut |
-|---|---|---|
-| Nom `chip` déjà pris sur npm | Moyen — forcer un scope `@{scope}/chip` | À vérifier avant publication |
-| better-sqlite3 nécessite un rebuild natif selon la version Node | Moyen — remplacé par @libsql/client | Résolu |
-| Collisions de slug si deux features ont un titre similaire | Faible — ajouter un suffixe numérique auto | Résolu (suffixe -2, -3…) |
-| Architecture v2 web — choix du framework | Faible en v1 — prévoir un dossier `src/server/` vide | Ouvert |
+| Sujet                                                           | Impact estimé                                        | Statut                       |
+| --------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------- |
+| Nom `chip` déjà pris sur npm                                    | Moyen — forcer un scope `@{scope}/chip`              | À vérifier avant publication |
+| better-sqlite3 nécessite un rebuild natif selon la version Node | Moyen — remplacé par @libsql/client                  | Résolu                       |
+| Collisions de slug si deux features ont un titre similaire      | Faible — ajouter un suffixe numérique auto           | Résolu (suffixe -2, -3…)     |
+| Architecture v2 web — choix du framework                        | Faible en v1 — prévoir un dossier `src/server/` vide | Ouvert                       |
 
 ---
 

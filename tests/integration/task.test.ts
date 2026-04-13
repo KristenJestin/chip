@@ -57,7 +57,7 @@ describe("addTask", () => {
 
     // Act & Assert
     await expect(addTask(db, "nonexistent", phase.id, "Task")).rejects.toThrow(
-      "Feature not found: nonexistent"
+      "Feature not found: nonexistent",
     );
   });
 
@@ -67,9 +67,7 @@ describe("addTask", () => {
     const featureId = await createFeature(db, "My Feature");
 
     // Act & Assert
-    await expect(addTask(db, featureId, 9999, "Task")).rejects.toThrow(
-      "Phase not found: 9999"
-    );
+    await expect(addTask(db, featureId, 9999, "Task")).rejects.toThrow("Phase not found: 9999");
   });
 
   it("throws when the phase belongs to a different feature", async () => {
@@ -81,7 +79,7 @@ describe("addTask", () => {
 
     // Act & Assert
     await expect(addTask(db, featureId2, phase.id, "Task")).rejects.toThrow(
-      `Phase ${phase.id} does not belong to feature ${featureId2}`
+      `Phase ${phase.id} does not belong to feature ${featureId2}`,
     );
   });
 });

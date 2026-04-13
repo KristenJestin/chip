@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { openDb, type Db } from "../../src/db/client";
@@ -10,5 +11,6 @@ const MIGRATIONS_FOLDER = path.resolve(process.cwd(), "drizzle");
  */
 export async function createTestDb(): Promise<Db> {
   const id = randomBytes(8).toString("hex");
-  return openDb(`file:/tmp/chip-test-${id}.db`, MIGRATIONS_FOLDER);
+  const tmpFile = path.join(os.tmpdir(), `chip-test-${id}.db`);
+  return openDb(`file:${tmpFile}`, MIGRATIONS_FOLDER);
 }
