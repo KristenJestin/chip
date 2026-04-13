@@ -8,8 +8,6 @@ import { die, errMsg } from "../utils/die";
 import { formatDateTime, sep } from "../utils/format";
 import { nowUnix } from "../utils/time";
 
-export type { Log };
-
 // ── Services (exported for testing) ──────────────────────────────────────────
 
 export async function addLog(

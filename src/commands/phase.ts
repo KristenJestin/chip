@@ -10,8 +10,6 @@ import { nowUnix } from "../utils/time";
 const VALID_STATUSES = ["todo", "in-progress", "review", "done"] as const;
 type PhaseTaskStatus = (typeof VALID_STATUSES)[number];
 
-export type { Phase };
-
 // ── Services (exported for testing) ──────────────────────────────────────────
 
 export async function addPhase(

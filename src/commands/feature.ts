@@ -1,13 +1,11 @@
 import { Command } from "@commander-js/extra-typings";
 import { type Db, getDb } from "../db/client";
 import { features } from "../db/schema";
-import { type FeatureDetails, type PhaseWithTasks } from "../db/types";
+import { type FeatureDetails } from "../db/types";
 import { toSlug, uniqueSlug } from "../utils/slug";
 import { formatDate, formatDateTime, statusBadge, sep, pad } from "../utils/format";
 import { die, errMsg } from "../utils/die";
 import { nowUnix } from "../utils/time";
-
-export type { PhaseWithTasks, FeatureDetails };
 
 const RECENT_LOGS_LIMIT = 10;
 
