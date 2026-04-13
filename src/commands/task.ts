@@ -1,14 +1,14 @@
 import { Command } from "@commander-js/extra-typings";
-import { eq, max } from "drizzle-orm";
 import { type Db, getDb } from "../db/client";
-import { features, phases, tasks } from "../db/schema";
-import { die } from "../utils/die";
+import { type Task } from "../db/types";
+import { tasks } from "../db/schema";
+import { assertFeatureExists, assertPhaseExists, nextTaskOrder } from "../db/helpers";
+import { die, errMsg } from "../utils/die";
+import { nowUnix } from "../utils/time";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+export type { Task };
 
-type Task = typeof tasks.$inferSelect;
-
-// ── Services (exported for testing) ─────────────────────────────────────────
+// ── Services (exported for testing) ──────────────────────────────────────────
 
 export async function addTask(
   db: Db,
@@ -17,44 +17,19 @@ export async function addTask(
   title: string,
   description?: string
 ): Promise<Task> {
-  const now = Math.floor(Date.now() / 1000);
+  await assertFeatureExists(db, featureId);
+  await assertPhaseExists(db, phaseId, featureId);
 
-  const feature = await db
-    .select({ id: features.id })
-    .from(features)
-    .where(eq(features.id, featureId))
-    .get();
-
-  if (!feature) throw new Error(`Feature not found: ${featureId}`);
-
-  const phase = await db
-    .select({ id: phases.id, featureId: phases.featureId })
-    .from(phases)
-    .where(eq(phases.id, phaseId))
-    .get();
-
-  if (!phase) throw new Error(`Phase not found: ${phaseId}`);
-
-  if (phase.featureId !== featureId) {
-    throw new Error(`Phase ${phaseId} does not belong to feature ${featureId}`);
-  }
-
-  const [maxRow] = await db
-    .select({ maxOrder: max(tasks.order) })
-    .from(tasks)
-    .where(eq(tasks.phaseId, phaseId))
-    .all();
-
-  const nextOrder = (maxRow?.maxOrder ?? 0) + 1;
+  const order = await nextTaskOrder(db, phaseId);
+  const now = nowUnix();
 
   const [inserted] = await db
     .insert(tasks)
     .values({
       phaseId,
-      order: nextOrder,
+      order,
       title,
       description: description ?? null,
-      status: "todo",
       createdAt: now,
       startedAt: null,
       completedAt: null,
@@ -66,12 +41,12 @@ export async function addTask(
   return inserted;
 }
 
-// ── Commander registration ───────────────────────────────────────────────────
+// ── Commander registration ────────────────────────────────────────────────────
 
 export function registerTaskCommands(program: Command): void {
   const taskCmd = program.command("task").description("Manage tasks");
 
-  // ── task add ─────────────────────────────────────────────────────────────────
+  // ── task add ──────────────────────────────────────────────────────────────
   taskCmd
     .command("add")
     .description("Add a task to a phase")
@@ -88,7 +63,7 @@ export function registerTaskCommands(program: Command): void {
         const task = await addTask(db, featureId, phaseId, title, description);
         console.log(`Added task ${task.id} to phase ${phaseId}: ${title}`);
       } catch (err) {
-        die(err instanceof Error ? err.message : String(err));
+        die(errMsg(err));
       }
     });
 }

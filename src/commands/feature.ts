@@ -2,33 +2,24 @@ import { Command } from "@commander-js/extra-typings";
 import { eq, desc, asc } from "drizzle-orm";
 import { type Db, getDb } from "../db/client";
 import { features, phases, tasks, logs } from "../db/schema";
+import { type FeatureDetails, type PhaseWithTasks } from "../db/types";
 import { toSlug, uniqueSlug } from "../utils/slug";
 import { formatDate, formatDateTime, statusBadge, sep, pad } from "../utils/format";
-import { die } from "../utils/die";
+import { die, errMsg } from "../utils/die";
+import { nowUnix } from "../utils/time";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+export type { PhaseWithTasks, FeatureDetails };
 
-type Feature = typeof features.$inferSelect;
-type Phase = typeof phases.$inferSelect;
-type Task = typeof tasks.$inferSelect;
-type Log = typeof logs.$inferSelect;
+const RECENT_LOGS_LIMIT = 10;
 
-export type PhaseWithTasks = Phase & { phaseTasks: Task[] };
-
-export type FeatureDetails = {
-  feature: Feature;
-  featurePhases: PhaseWithTasks[];
-  recentLogs: Log[];
-};
-
-// ── Services (exported for testing) ─────────────────────────────────────────
+// ── Services (exported for testing) ──────────────────────────────────────────
 
 export async function createFeature(
   db: Db,
   title: string,
   description?: string
 ): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
+  const now = nowUnix();
   const existing = await db.select({ id: features.id }).from(features).all();
   const id = uniqueSlug(toSlug(title), existing.map((f) => f.id));
   await db
@@ -38,7 +29,7 @@ export async function createFeature(
   return id;
 }
 
-export async function listFeatures(db: Db): Promise<Feature[]> {
+export async function listFeatures(db: Db) {
   return db.select().from(features).orderBy(asc(features.createdAt)).all();
 }
 
@@ -75,13 +66,13 @@ export async function getFeatureDetails(db: Db, featureId: string): Promise<Feat
     .from(logs)
     .where(eq(logs.featureId, featureId))
     .orderBy(desc(logs.createdAt))
-    .limit(10)
+    .limit(RECENT_LOGS_LIMIT)
     .all();
 
   return { feature, featurePhases: phasesWithTasks, recentLogs };
 }
 
-// ── Commander registration ───────────────────────────────────────────────────
+// ── Commander registration ────────────────────────────────────────────────────
 
 export function registerFeatureCommands(program: Command): void {
   const featureCmd = program
@@ -100,11 +91,11 @@ export function registerFeatureCommands(program: Command): void {
         const id = await createFeature(db, title, description);
         console.log(`Created feature: ${id}`);
       } catch (err) {
-        die(err instanceof Error ? err.message : String(err));
+        die(errMsg(err));
       }
     });
 
-  // ── feature list ─────────────────────────────────────────────────────────────
+  // ── feature list ────────────────────────────────────────────────────────────
   featureCmd
     .command("list")
     .description("List all features")
@@ -127,7 +118,7 @@ export function registerFeatureCommands(program: Command): void {
       }
     });
 
-  // ── feature status ───────────────────────────────────────────────────────────
+  // ── feature status ──────────────────────────────────────────────────────────
   featureCmd
     .command("status")
     .description("Show detailed status of a feature")
@@ -138,12 +129,12 @@ export function registerFeatureCommands(program: Command): void {
       try {
         details = await getFeatureDetails(db, featureId);
       } catch (err) {
-        die(err instanceof Error ? err.message : String(err));
+        die(errMsg(err));
       }
 
       const { feature, featurePhases, recentLogs } = details;
 
-      // ── header ────────────────────────────────────────────────────────────────
+      // ── header ──────────────────────────────────────────────────────────────
       console.log(`feature: ${feature.id}`);
       console.log(sep());
       console.log(`title:   ${feature.title}`);
@@ -156,7 +147,7 @@ export function registerFeatureCommands(program: Command): void {
         console.log(`updated: ${formatDate(feature.updatedAt)}`);
       }
 
-      // ── phases ────────────────────────────────────────────────────────────────
+      // ── phases ───────────────────────────────────────────────────────────────
       console.log("");
       console.log(`phases (${featurePhases.length})`);
       console.log(sep());
@@ -183,7 +174,7 @@ export function registerFeatureCommands(program: Command): void {
         }
       }
 
-      // ── logs ──────────────────────────────────────────────────────────────────
+      // ── logs ─────────────────────────────────────────────────────────────────
       console.log(`recent logs (${recentLogs.length})`);
       console.log(sep());
 

@@ -2,6 +2,8 @@ import chalk from "chalk";
 
 type ChalkFn = (s: string) => string;
 
+const DEFAULT_SEP_WIDTH = 56;
+
 const STATUS_CHALK: Record<string, ChalkFn> = {
   // feature statuses
   active: (s) => chalk.blue(s),
@@ -28,7 +30,7 @@ export function statusBadge(status: string): string {
   return STATUS_CHALK[status]?.(badge) ?? badge;
 }
 
-export function sep(width = 56): string {
+export function sep(width = DEFAULT_SEP_WIDTH): string {
   return "─".repeat(width);
 }
 

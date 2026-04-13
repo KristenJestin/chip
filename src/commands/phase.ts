@@ -1,14 +1,14 @@
 import { Command } from "@commander-js/extra-typings";
-import { eq, max } from "drizzle-orm";
 import { type Db, getDb } from "../db/client";
-import { features, phases } from "../db/schema";
-import { die } from "../utils/die";
+import { type Phase } from "../db/types";
+import { phases } from "../db/schema";
+import { assertFeatureExists, nextPhaseOrder } from "../db/helpers";
+import { die, errMsg } from "../utils/die";
+import { nowUnix } from "../utils/time";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+export type { Phase };
 
-type Phase = typeof phases.$inferSelect;
-
-// ── Services (exported for testing) ─────────────────────────────────────────
+// ── Services (exported for testing) ──────────────────────────────────────────
 
 export async function addPhase(
   db: Db,
@@ -16,32 +16,18 @@ export async function addPhase(
   title: string,
   description?: string
 ): Promise<Phase> {
-  const now = Math.floor(Date.now() / 1000);
+  await assertFeatureExists(db, featureId);
 
-  const feature = await db
-    .select({ id: features.id })
-    .from(features)
-    .where(eq(features.id, featureId))
-    .get();
-
-  if (!feature) throw new Error(`Feature not found: ${featureId}`);
-
-  const [maxRow] = await db
-    .select({ maxOrder: max(phases.order) })
-    .from(phases)
-    .where(eq(phases.featureId, featureId))
-    .all();
-
-  const nextOrder = (maxRow?.maxOrder ?? 0) + 1;
+  const order = await nextPhaseOrder(db, featureId);
+  const now = nowUnix();
 
   const [inserted] = await db
     .insert(phases)
     .values({
       featureId,
-      order: nextOrder,
+      order,
       title,
       description: description ?? null,
-      status: "todo",
       createdAt: now,
       startedAt: null,
       completedAt: null,
@@ -53,7 +39,7 @@ export async function addPhase(
   return inserted;
 }
 
-// ── Commander registration ───────────────────────────────────────────────────
+// ── Commander registration ────────────────────────────────────────────────────
 
 export function registerPhaseCommands(program: Command): void {
   const phaseCmd = program.command("phase").description("Manage phases");
@@ -71,7 +57,7 @@ export function registerPhaseCommands(program: Command): void {
         const phase = await addPhase(db, featureId, title, description);
         console.log(`Added phase ${phase.id} to ${featureId}: ${title}`);
       } catch (err) {
-        die(err instanceof Error ? err.message : String(err));
+        die(errMsg(err));
       }
     });
 }

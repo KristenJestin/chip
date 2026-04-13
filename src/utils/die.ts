@@ -8,3 +8,11 @@ export function die(msg: string): never {
   console.error(chalk.red(`error: ${msg}`));
   process.exit(1);
 }
+
+/**
+ * Extracts a human-readable message from an unknown thrown value.
+ * Use in catch blocks: `die(errMsg(err))`.
+ */
+export function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
