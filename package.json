@@ -18,6 +18,8 @@
   "scripts": {
     "build": "tsup && rm -rf dist/migrations && cp -r drizzle dist/migrations",
     "build:win": "tsup && rm -rf dist/migrations && cp -R drizzle dist/migrations",
+    "install:local": "bun run build && bun link",
+    "install:local:win": "bun run build:win && bun link",
     "chip": "bun src/index.ts --",
     "db:studio": "drizzle-kit studio",
     "dev": "tsup --watch",

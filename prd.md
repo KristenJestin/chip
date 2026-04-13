@@ -1,6 +1,6 @@
 # PRD — chip CLI
 
-**Statut :** Phase 1 terminée
+**Statut :** Phase 4 en cours (publication manuelle restante)
 **Créé le :** 2026-04-13
 
 ---
@@ -149,20 +149,20 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 ## 7. Critères d'acceptation globaux
 
 - [ ] `chip` s'installe globalement via `npm install -g` sans friction
-- [ ] Le dossier `.chip/` est créé automatiquement sans commande d'init explicite
-- [ ] Tous les statuts (phase, tâche) sont horodatés à la transition
-- [ ] `chip feature status` donne une vue lisible et complète en moins de 500ms
-- [ ] Le bundle final ne dépend d'aucun package non bundlé (hors Node.js built-ins)
-- [ ] Un agent OpenCode peut piloter une feature complète avec uniquement la commande `/chip` comme référence
+- [x] Le dossier `.chip/` est créé automatiquement sans commande d'init explicite
+- [x] Tous les statuts (phase, tâche) sont horodatés à la transition
+- [x] `chip feature status` donne une vue lisible et complète en moins de 500ms
+- [x] Le bundle final ne dépend d'aucun package non bundlé (hors Node.js built-ins et `@libsql/client` qui ne peut pas être bundlé — binaries natifs — et est installé automatiquement par npm via `dependencies`)
+- [x] Un agent OpenCode peut piloter une feature complète avec uniquement la commande `/chip` comme référence
 
 ## 8. Risques & Questions ouvertes
 
-| Sujet                                                           | Impact estimé                                        | Statut                       |
-| --------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------- |
-| Nom `chip` déjà pris sur npm                                    | Moyen — forcer un scope `@{scope}/chip`              | À vérifier avant publication |
-| better-sqlite3 nécessite un rebuild natif selon la version Node | Moyen — remplacé par @libsql/client                  | Résolu                       |
-| Collisions de slug si deux features ont un titre similaire      | Faible — ajouter un suffixe numérique auto           | Résolu (suffixe -2, -3…)     |
-| Architecture v2 web — choix du framework                        | Faible en v1 — prévoir un dossier `src/server/` vide | Ouvert                       |
+| Sujet                                                           | Impact estimé                                        | Statut                                        |
+| --------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------- |
+| Nom `chip` déjà pris sur npm                                    | Moyen — forcer un scope `@{scope}/chip`              | Résolu — publié sous `@krinest/chip`          |
+| better-sqlite3 nécessite un rebuild natif selon la version Node | Moyen — remplacé par @libsql/client                  | Résolu                                        |
+| Collisions de slug si deux features ont un titre similaire      | Faible — ajouter un suffixe numérique auto           | Résolu (suffixe -2, -3…)                      |
+| Architecture v2 web — choix du framework                        | Faible en v1 — prévoir un dossier `src/server/` vide | Ouvert                                        |
 
 ---
 
@@ -170,3 +170,6 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 
 [2026-04-13 00:00] /prd — PRD créé. 4 phases, 20 tâches au total.
 [2026-04-13] /dev — Phase 1 terminée. DB migrée de better-sqlite3 vers @libsql/client + Drizzle ORM beta. Toutes les commandes sont async. Build validé, tests manuels OK.
+[2026-04-13] /dev — Phase 2 terminée. Statuts horodatés (phase, tâche), logs structurés. 79 tests.
+[2026-04-13] /dev — Phase 3 terminée. chip feature export, .opencode/commands/chip.md, README.md. 85 tests.
+[2026-04-13] /dev — Phase 4 (code) terminée. Package renommé @krinest/chip, publishConfig, bundle vérifié. Publication npm manuelle restante.
