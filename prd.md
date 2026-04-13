@@ -1,0 +1,171 @@
+# PRD — chip CLI
+
+**Statut :** Brouillon
+**Créé le :** 2026-04-13
+
+---
+
+## 1. Contexte & Problème
+
+Les commandes OpenCode `/prd`, `/dev`, `/review` et `/docs` opèrent sur des fichiers markdown gérés manuellement par les agents. Cette approche est fragile : les agents manipulent les cases à cocher à la main, les sections de journal peuvent être malformées, et rien ne garantit la cohérence entre les états des tâches, des phases et des logs au fil des sessions.
+
+Il manque un contrat d'écriture stable entre les agents et les données de progression. Les agents doivent pouvoir mettre à jour l'état d'une tâche, d'une phase ou ajouter un log avec une seule commande courte et fiable, sans toucher à la structure d'un fichier markdown.
+
+## 2. Objectif
+
+Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour la gestion des features, phases, tâches et logs de progression. La base de données SQLite est la source de vérité. Les agents n'écrivent plus dans des fichiers markdown — ils appellent `chip`.
+
+## 3. Périmètre
+
+### Inclus
+
+- Création et gestion de features, phases et tâches avec statuts horodatés
+- Journalisation structurée (feature, phase, tâche)
+- Initialisation automatique du dossier de données au premier lancement dans un projet
+- Export markdown d'une feature (lecture humaine)
+- Commande OpenCode de référence pour les agents
+- Architecture préparée pour une interface web en v2
+
+### Exclus (explicitement)
+
+- Gestion de la documentation technique (reste dans les commandes OpenCode + fichiers bruts)
+- Interface web (v2)
+- Synchronisation ou partage multi-machines
+- Authentification ou gestion multi-utilisateurs
+
+## 4. Contraintes & Décisions techniques
+
+- **Runtime :** Node.js, TypeScript strict
+- **Build :** tsup — un seul fichier de sortie avec shebang, zéro dépendance runtime non bundlée
+- **Framework CLI :** Commander.js avec `@commander-js/extra-typings`
+- **Base de données :** SQLite via `better-sqlite3` (synchrone, critique pour CLI) + Drizzle ORM (schéma typé, migrations)
+- **Installation :** `npm install -g` depuis npm (scope public ou privé) ou `npm install -g .` en local
+- **Dossier de données :** `.chip/` à la racine du projet courant (là où `chip` est lancé), créé automatiquement au premier appel si absent
+- **Fichier de base de données :** `.chip/chip.db`
+- **Pas de config globale en v1** — tout est local au projet
+- **Ajout au `.gitignore` :** `.chip/` est proposé automatiquement à l'init
+
+## 5. Modèle de données
+
+### Feature
+
+| Champ       | Type    | Description                                 |
+|-------------|---------|---------------------------------------------|
+| id          | text PK | Slug kebab-case généré depuis le titre      |
+| title       | text    | Titre                                       |
+| description | text    | Description libre                           |
+| status      | text    | `active` \| `done` \| `archived`           |
+| createdAt   | integer | Timestamp Unix                              |
+| updatedAt   | integer | Timestamp Unix                              |
+
+### Phase
+
+| Champ       | Type     | Description                                                        |
+|-------------|----------|--------------------------------------------------------------------|
+| id          | integer PK | Auto-incrément                                                   |
+| featureId   | text FK  | Référence feature                                                  |
+| order       | integer  | Ordre d'affichage                                                  |
+| title       | text     | Titre                                                              |
+| description | text     | Description / critères de complétion                               |
+| status      | text     | `todo` \| `in-progress` \| `review` \| `done`                    |
+| createdAt   | integer  | Timestamp Unix                                                     |
+| startedAt   | integer  | Timestamp Unix — renseigné au passage en `in-progress`             |
+| completedAt | integer  | Timestamp Unix — renseigné au passage en `done`                    |
+
+### Task
+
+| Champ       | Type     | Description                                                        |
+|-------------|----------|--------------------------------------------------------------------|
+| id          | integer PK | Auto-incrément                                                   |
+| phaseId     | integer FK | Référence phase                                                  |
+| order       | integer  | Ordre d'affichage                                                  |
+| title       | text     | Titre                                                              |
+| description | text     | Description courte                                                 |
+| status      | text     | `todo` \| `in-progress` \| `review` \| `done`                    |
+| createdAt   | integer  | Timestamp Unix                                                     |
+| startedAt   | integer  | Timestamp Unix                                                     |
+| completedAt | integer  | Timestamp Unix                                                     |
+
+### Log
+
+| Champ     | Type     | Description                                       |
+|-----------|----------|---------------------------------------------------|
+| id        | integer PK | Auto-incrément                                  |
+| featureId | text FK  | Référence feature                                 |
+| phaseId   | integer  | Optionnel — référence phase                       |
+| taskId    | integer  | Optionnel — référence tâche                       |
+| source    | text     | Commande à l'origine (`/dev`, `/review`, etc.)    |
+| message   | text     | Message court et factuel                          |
+| createdAt | integer  | Timestamp Unix                                    |
+
+## 6. Phases & Tâches
+
+### [ ] Phase 1 — Fondations
+
+**Objectif :** Projet buildable, installable, base de données initialisée, commandes CRUD de base fonctionnelles.
+**Critères de complétion :** `npm install -g .` fonctionne, `chip feature create` crée une feature dans la BDD, `chip feature status` l'affiche correctement.
+
+- [ ] Initialiser le projet (tsup, Commander, better-sqlite3, Drizzle, tsconfig strict)
+- [ ] Écrire le schéma Drizzle pour Feature, Phase, Task, Log
+- [ ] Implémenter la logique d'init automatique du dossier `.chip/` et de la BDD au premier lancement
+- [ ] Proposer l'ajout de `.chip/` au `.gitignore` si le fichier existe et ne contient pas déjà l'entrée
+- [ ] Implémenter `chip feature create <title> [description]`
+- [ ] Implémenter `chip feature list`
+- [ ] Implémenter `chip feature status <feature-id>` — affichage complet (phases, tâches, derniers logs)
+- [ ] Implémenter `chip phase add <feature-id> <title> [description]`
+- [ ] Implémenter `chip task add <feature-id> <phase-id> <title> [description]`
+- [ ] Configurer tsup pour produire un binaire avec shebang correct
+
+### [ ] Phase 2 — Gestion des statuts et journalisation
+
+**Objectif :** Les agents peuvent piloter entièrement le cycle de vie d'une feature depuis le terminal.
+**Critères de complétion :** Un agent peut créer une feature, cocher des tâches, changer les statuts de phases et logger des événements — tout est persisté avec horodatage correct dans la BDD.
+
+- [ ] Implémenter `chip phase status <feature-id> <phase-id> <status>` — met à jour le statut avec horodatage automatique
+- [ ] Implémenter `chip task status <feature-id> <phase-id> <task-id> <status>` — idem
+- [ ] Implémenter `chip log add <feature-id> <message> [--phase <id>] [--task <id>] [--source <cmd>]`
+- [ ] Implémenter `chip log list <feature-id>` — affichage chronologique avec filtres optionnels
+- [ ] Valider que les transitions de statut horodatent correctement `startedAt` et `completedAt`
+
+### [ ] Phase 3 — Export et commande OpenCode
+
+**Objectif :** Un humain peut lire l'état d'une feature en markdown propre. Les agents OpenCode ont une référence concise et fiable du CLI.
+**Critères de complétion :** `chip export` produit un markdown lisible. La commande OpenCode `/chip` donne à l'agent exactement ce qu'il faut pour utiliser le CLI sans documentation supplémentaire.
+
+- [ ] Implémenter `chip feature export <feature-id>` — génère un markdown complet (feature, phases, tâches avec statuts et timestamps, logs) dans stdout ou dans un fichier optionnel
+- [ ] Écrire la commande OpenCode `.opencode/commands/chip.md` — référence statique et concise de toutes les commandes, avec exemples, sans sortie `--help` brute (trop verbeux pour un agent)
+- [ ] Écrire un `README.md` du projet CLI complet
+
+### [ ] Phase 4 — Publication et install
+
+**Objectif :** Le CLI est installable en une commande depuis n'importe quelle machine.
+**Critères de complétion :** `npm install -g @{scope}/chip` fonctionne, `chip --version` retourne la bonne version, `npm update -g @{scope}/chip` met à jour proprement.
+
+- [ ] Configurer `package.json` avec `bin`, `files`, `publishConfig`
+- [ ] Vérifier que le bundle tsup est autonome (pas de dépendances runtime manquantes)
+- [ ] Publier sur npm (scope privé ou public selon préférence)
+- [ ] Tester install globale depuis npm sur machine propre
+
+## 7. Critères d'acceptation globaux
+
+- [ ] `chip` s'installe globalement via `npm install -g` sans friction
+- [ ] Le dossier `.chip/` est créé automatiquement sans commande d'init explicite
+- [ ] Tous les statuts (phase, tâche) sont horodatés à la transition
+- [ ] `chip feature status` donne une vue lisible et complète en moins de 500ms
+- [ ] Le bundle final ne dépend d'aucun package non bundlé (hors Node.js built-ins)
+- [ ] Un agent OpenCode peut piloter une feature complète avec uniquement la commande `/chip` comme référence
+
+## 8. Risques & Questions ouvertes
+
+| Sujet | Impact estimé | Statut |
+|---|---|---|
+| Nom `chip` déjà pris sur npm | Moyen — forcer un scope `@{scope}/chip` | À vérifier avant publication |
+| better-sqlite3 nécessite un rebuild natif selon la version Node | Moyen — tester sur Node 18, 20, 22 | Ouvert |
+| Collisions de slug si deux features ont un titre similaire | Faible — ajouter un suffixe numérique auto | Ouvert |
+| Architecture v2 web — choix du framework | Faible en v1 — prévoir un dossier `src/server/` vide | Ouvert |
+
+---
+
+## Journal
+
+[2026-04-13 00:00] /prd — PRD créé. 4 phases, 20 tâches au total.
