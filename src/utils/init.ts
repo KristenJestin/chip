@@ -14,6 +14,11 @@ export function getDbPath(): string {
 
 let initialized = false;
 
+/** Resets the init flag. For use in tests only. */
+export function _resetForTesting(): void {
+  initialized = false;
+}
+
 /**
  * Ensures .chip/ directory exists. On first creation, proposes adding it
  * to .gitignore (auto-adds if .gitignore exists without the entry).

@@ -11,7 +11,7 @@ export default defineConfig({
   },
   platform: "node",
   target: "node18",
-  noExternal: ["commander", "@commander-js/extra-typings", "drizzle-orm"],
+  noExternal: ["commander", "@commander-js/extra-typings", "drizzle-orm", "chalk"],
   external: ["@libsql/client"],
   minify: false,
 });
