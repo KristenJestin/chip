@@ -9,13 +9,13 @@ A CLI tool for managing software features, phases, and tasks — designed to be 
 ## Install
 
 ```bash
-npm install -g .        # local install from repo
+npm install -g @krinest/chip
 ```
 
-Or, once published:
+Or from the repo:
 
 ```bash
-npm install -g @scope/chip
+npm install -g .
 ```
 
 ---

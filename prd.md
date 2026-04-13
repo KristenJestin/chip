@@ -136,13 +136,13 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 - [x] Écrire la commande OpenCode `.opencode/commands/chip.md` — référence statique et concise de toutes les commandes, avec exemples, sans sortie `--help` brute (trop verbeux pour un agent)
 - [x] Écrire un `README.md` du projet CLI complet
 
-### [ ] Phase 4 — Publication et install
+### [x] Phase 4 — Publication et install
 
 **Objectif :** Le CLI est installable en une commande depuis n'importe quelle machine.
 **Critères de complétion :** `npm install -g @{scope}/chip` fonctionne, `chip --version` retourne la bonne version, `npm update -g @{scope}/chip` met à jour proprement.
 
-- [ ] Configurer `package.json` avec `bin`, `files`, `publishConfig`
-- [ ] Vérifier que le bundle tsup est autonome (pas de dépendances runtime manquantes)
+- [x] Configurer `package.json` avec `bin`, `files`, `publishConfig`
+- [x] Vérifier que le bundle tsup est autonome (pas de dépendances runtime manquantes)
 - [ ] Publier sur npm (scope privé ou public selon préférence)
 - [ ] Tester install globale depuis npm sur machine propre
 

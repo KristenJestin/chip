@@ -1,10 +1,10 @@
 {
-  "name": "chip",
+  "name": "@krinest/chip",
   "version": "1.0.0",
   "description": "CLI pour la gestion de features, phases et tâches",
-  "keywords": [],
+  "keywords": ["cli", "agent", "task-management", "sqlite"],
   "license": "ISC",
-  "author": "",
+  "author": "krinest",
   "bin": {
     "chip": "./dist/index.js"
   },
@@ -12,6 +12,9 @@
     "dist"
   ],
   "main": "dist/index.js",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup && rm -rf dist/migrations && cp -r drizzle dist/migrations",
     "build:win": "tsup && rm -rf dist/migrations && cp -R drizzle dist/migrations",
