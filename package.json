@@ -1,15 +1,32 @@
 {
   "name": "chip",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "CLI pour la gestion de features, phases et tâches",
+  "main": "dist/index.js",
+  "bin": {
+    "chip": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsup"
+    "build": "tsup && rm -rf dist/migrations && cp -r drizzle dist/migrations",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "tsup": "^8.5.1"
+    "@types/node": "^25.6.0",
+    "drizzle-kit": "^1.0.0-beta.21",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.2"
+  },
+  "dependencies": {
+    "@commander-js/extra-typings": "^14.0.0",
+    "@libsql/client": "^0.17.2",
+    "commander": "^14.0.3",
+    "drizzle-orm": "^1.0.0-beta.21"
   }
 }

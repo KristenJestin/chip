@@ -2,7 +2,16 @@ import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: ["src/index.ts"],
+  format: ["cjs"],
   splitting: false,
-  sourcemap: true,
+  sourcemap: false,
   clean: true,
+  banner: {
+    js: "#!/usr/bin/env node",
+  },
+  platform: "node",
+  target: "node18",
+  noExternal: ["commander", "@commander-js/extra-typings", "drizzle-orm"],
+  external: ["@libsql/client"],
+  minify: false,
 });

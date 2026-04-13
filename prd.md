@@ -1,6 +1,6 @@
 # PRD — chip CLI
 
-**Statut :** Brouillon
+**Statut :** Phase 1 terminée
 **Créé le :** 2026-04-13
 
 ---
@@ -38,7 +38,7 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 - **Runtime :** Node.js, TypeScript strict
 - **Build :** tsup — un seul fichier de sortie avec shebang, zéro dépendance runtime non bundlée
 - **Framework CLI :** Commander.js avec `@commander-js/extra-typings`
-- **Base de données :** SQLite via `better-sqlite3` (synchrone, critique pour CLI) + Drizzle ORM (schéma typé, migrations)
+- **Base de données :** SQLite via `@libsql/client` (asynchrone) + Drizzle ORM beta (schéma typé, migrations Drizzle v1)
 - **Installation :** `npm install -g` depuis npm (scope public ou privé) ou `npm install -g .` en local
 - **Dossier de données :** `.chip/` à la racine du projet courant (là où `chip` est lancé), créé automatiquement au premier appel si absent
 - **Fichier de base de données :** `.chip/chip.db`
@@ -100,21 +100,21 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 
 ## 6. Phases & Tâches
 
-### [ ] Phase 1 — Fondations
+### [x] Phase 1 — Fondations
 
 **Objectif :** Projet buildable, installable, base de données initialisée, commandes CRUD de base fonctionnelles.
 **Critères de complétion :** `npm install -g .` fonctionne, `chip feature create` crée une feature dans la BDD, `chip feature status` l'affiche correctement.
 
-- [ ] Initialiser le projet (tsup, Commander, better-sqlite3, Drizzle, tsconfig strict)
-- [ ] Écrire le schéma Drizzle pour Feature, Phase, Task, Log
-- [ ] Implémenter la logique d'init automatique du dossier `.chip/` et de la BDD au premier lancement
-- [ ] Proposer l'ajout de `.chip/` au `.gitignore` si le fichier existe et ne contient pas déjà l'entrée
-- [ ] Implémenter `chip feature create <title> [description]`
-- [ ] Implémenter `chip feature list`
-- [ ] Implémenter `chip feature status <feature-id>` — affichage complet (phases, tâches, derniers logs)
-- [ ] Implémenter `chip phase add <feature-id> <title> [description]`
-- [ ] Implémenter `chip task add <feature-id> <phase-id> <title> [description]`
-- [ ] Configurer tsup pour produire un binaire avec shebang correct
+- [x] Initialiser le projet (tsup, Commander, @libsql/client, Drizzle ORM beta, tsconfig strict)
+- [x] Écrire le schéma Drizzle pour Feature, Phase, Task, Log
+- [x] Implémenter la logique d'init automatique du dossier `.chip/` et de la BDD au premier lancement
+- [x] Proposer l'ajout de `.chip/` au `.gitignore` si le fichier existe et ne contient pas déjà l'entrée
+- [x] Implémenter `chip feature create <title> [description]`
+- [x] Implémenter `chip feature list`
+- [x] Implémenter `chip feature status <feature-id>` — affichage complet (phases, tâches, derniers logs)
+- [x] Implémenter `chip phase add <feature-id> <title> [description]`
+- [x] Implémenter `chip task add <feature-id> <phase-id> <title> [description]`
+- [x] Configurer tsup pour produire un binaire avec shebang correct
 
 ### [ ] Phase 2 — Gestion des statuts et journalisation
 
@@ -160,8 +160,8 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 | Sujet | Impact estimé | Statut |
 |---|---|---|
 | Nom `chip` déjà pris sur npm | Moyen — forcer un scope `@{scope}/chip` | À vérifier avant publication |
-| better-sqlite3 nécessite un rebuild natif selon la version Node | Moyen — tester sur Node 18, 20, 22 | Ouvert |
-| Collisions de slug si deux features ont un titre similaire | Faible — ajouter un suffixe numérique auto | Ouvert |
+| better-sqlite3 nécessite un rebuild natif selon la version Node | Moyen — remplacé par @libsql/client | Résolu |
+| Collisions de slug si deux features ont un titre similaire | Faible — ajouter un suffixe numérique auto | Résolu (suffixe -2, -3…) |
 | Architecture v2 web — choix du framework | Faible en v1 — prévoir un dossier `src/server/` vide | Ouvert |
 
 ---
@@ -169,3 +169,4 @@ Fournir un CLI système (`chip`) qui sert de couche de persistance unique pour l
 ## Journal
 
 [2026-04-13 00:00] /prd — PRD créé. 4 phases, 20 tâches au total.
+[2026-04-13] /dev — Phase 1 terminée. DB migrée de better-sqlite3 vers @libsql/client + Drizzle ORM beta. Toutes les commandes sont async. Build validé, tests manuels OK.
