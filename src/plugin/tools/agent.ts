@@ -19,7 +19,7 @@ export function agentTools(db: Db): Record<string, ToolDefinition> {
 
     chip_batch: tool({
       description:
-        "Create phases and tasks in bulk for a feature from a JSON payload. Format: { phases: [{ title, description?, tasks: [{ title, description?, type? }] }] }",
+        "Create phases and tasks in bulk for a feature from a JSON payload. Tasks can reference each other with 'ref' (unique string key) and declare 'blockedBy' (array of refs) to wire up dependencies. Format: { phases: [{ title, description?, tasks: [{ title, description?, type?, ref?, blockedBy?: string[] }] }] }",
       args: {
         featureId: tool.schema.string().min(1),
         payload: tool.schema.object({
@@ -34,6 +34,8 @@ export function agentTools(db: Db): Record<string, ToolDefinition> {
                   type: tool.schema
                     .enum(["feature", "fix", "docs", "test"])
                     .optional(),
+                  ref: tool.schema.string().min(1).optional(),
+                  blockedBy: tool.schema.array(tool.schema.string().min(1)).optional(),
                 }),
               ),
             }),

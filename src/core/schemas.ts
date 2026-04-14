@@ -210,6 +210,8 @@ export const BatchTaskSpec = z.object({
   title: nonEmptyString,
   description: z.string().optional(),
   type: taskType.optional(),
+  ref: z.string().min(1).optional(),
+  blockedBy: z.array(z.string().min(1)).optional(),
 });
 export type BatchTaskSpec = z.infer<typeof BatchTaskSpec>;
 
