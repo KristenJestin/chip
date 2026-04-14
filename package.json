@@ -1,10 +1,13 @@
 {
   "name": "@netsirk/chip",
   "version": "1.0.0",
-  "description": "CLI pour la gestion de features, phases et tâches",
-  "keywords": ["cli", "agent", "task-management", "sqlite"],
+  "description": "CLI for AI coding agents — structured persistence for features, phases, tasks, sessions, findings and acceptance criteria backed by SQLite",
+  "keywords": ["cli", "agent", "ai", "task-management", "sqlite", "opencode"],
   "license": "ISC",
   "author": "netsirk",
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "chip": "./dist/index.js"
   },
@@ -22,6 +25,8 @@
   "scripts": {
     "build": "tsup && rm -rf dist/migrations && cp -r drizzle dist/migrations && cp -r src/templates dist/templates",
     "build:win": "tsup && rm -rf dist/migrations && cp -R drizzle dist/migrations && cp -R src/templates dist/templates",
+    "prepublishOnly": "bun run typecheck && bun run test && bun run build",
+    "release": "bun publish",
     "install:local": "bun run build && bun link @netsirk/chip",
     "install:local:win": "bun run build:win && bun link @netsirk/chip",
     "chip": "bun src/cli/index.ts --",
