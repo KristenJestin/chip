@@ -26,7 +26,7 @@
     "build": "tsup && rm -rf dist/migrations && cp -r drizzle dist/migrations && cp -r src/templates dist/templates",
     "build:win": "tsup && rm -rf dist/migrations && cp -R drizzle dist/migrations && cp -R src/templates dist/templates",
     "prepublishOnly": "bun run typecheck && bun run test && bun run build",
-    "release": "bun publish",
+    "release": "npm publish",
     "install:local": "bun run build && bun link @netsirk/chip",
     "install:local:win": "bun run build:win && bun link @netsirk/chip",
     "chip": "bun src/cli/index.ts --",
