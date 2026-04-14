@@ -30,23 +30,23 @@ export function registerTaskCommands(program: Command): void {
     .action(async (featureId, phaseIdStr, title, description, options) => {
       const db = await getDb();
       const phaseId = parseInt(phaseIdStr, 10);
-      if (isNaN(phaseId)) die(`Identifiant de phase invalide : ${phaseIdStr}`);
+      if (isNaN(phaseId)) die(`Invalid phase ID: ${phaseIdStr}`);
 
       const type = options.type as TaskType;
       if (!(VALID_TASK_TYPES as readonly string[]).includes(type)) {
-        die(`Type invalide : ${type}. Valeurs acceptées : ${VALID_TASK_TYPES.join(", ")}`);
+        die(`Invalid type: ${type}. Valid values: ${VALID_TASK_TYPES.join(", ")}`);
       }
 
       const parentTaskId =
         options.parent != null ? parseInt(options.parent, 10) : undefined;
       if (parentTaskId !== undefined && isNaN(parentTaskId)) {
-        die(`Identifiant de tâche parente invalide : ${options.parent}`);
+        die(`Invalid parent task ID: ${options.parent}`);
       }
 
       const blockedById =
         options.blockedBy != null ? parseInt(options.blockedBy, 10) : undefined;
       if (blockedById !== undefined && isNaN(blockedById)) {
-        die(`Identifiant de tâche bloquante invalide : ${options.blockedBy}`);
+        die(`Invalid blocking task ID: ${options.blockedBy}`);
       }
 
       try {
@@ -54,11 +54,11 @@ export function registerTaskCommands(program: Command): void {
           type,
           parentTaskId,
         });
-        console.log(`Tâche ${task.id} ajoutée à la phase ${phaseId} : ${title}`);
+        console.log(`Task ${task.id} added to phase ${phaseId}: ${title}`);
 
         if (blockedById !== undefined) {
           await addTaskDependency(db, featureId, task.id, blockedById);
-          console.log(`Tâche ${task.id} bloquée par la tâche ${blockedById}`);
+          console.log(`Task ${task.id} blocked by task ${blockedById}`);
         }
       } catch (err) {
         die(errMsg(err));
@@ -76,12 +76,12 @@ export function registerTaskCommands(program: Command): void {
     .action(async (featureId, phaseIdStr, taskIdStr, statusStr) => {
       const db = await getDb();
       const phaseId = parseInt(phaseIdStr, 10);
-      if (isNaN(phaseId)) die(`Identifiant de phase invalide : ${phaseIdStr}`);
+      if (isNaN(phaseId)) die(`Invalid phase ID: ${phaseIdStr}`);
       const taskId = parseInt(taskIdStr, 10);
-      if (isNaN(taskId)) die(`Identifiant de tâche invalide : ${taskIdStr}`);
+      if (isNaN(taskId)) die(`Invalid task ID: ${taskIdStr}`);
       if (!(VALID_TASK_STATUSES as readonly string[]).includes(statusStr)) {
         die(
-          `Statut invalide : ${statusStr}. Valeurs acceptées : ${VALID_TASK_STATUSES.join(", ")}`,
+          `Invalid status: ${statusStr}. Valid values: ${VALID_TASK_STATUSES.join(", ")}`,
         );
       }
 
@@ -93,7 +93,7 @@ export function registerTaskCommands(program: Command): void {
           taskId,
           statusStr as PhaseTaskStatus,
         );
-        console.log(`Tâche ${task.id} : statut → ${task.status}`);
+        console.log(`Task ${task.id}: status → ${task.status}`);
       } catch (err) {
         die(errMsg(err));
       }

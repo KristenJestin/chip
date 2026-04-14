@@ -123,12 +123,12 @@ export function registerFeatureCommands(program: Command): void {
               const blockedBy = depMap.blockedBy.get(task.id);
               if (blockedBy && blockedBy.length > 0) {
                 const names = blockedBy.map((t) => `#${t.id} ${t.title}`).join(", ");
-                console.log(`                Bloqué par : ${names}`);
+                console.log(`                Blocked by: ${names}`);
               }
               const blocks = depMap.blocks.get(task.id);
               if (blocks && blocks.length > 0) {
                 const names = blocks.map((t) => `#${t.id} ${t.title}`).join(", ");
-                console.log(`                Bloque : ${names}`);
+                console.log(`                Blocks: ${names}`);
               }
             }
           }

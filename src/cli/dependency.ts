@@ -27,13 +27,13 @@ export function registerDependencyCommands(program: Command): void {
     .action(async (featureId, taskIdStr, blockingTaskIdStr) => {
       const db = await getDb();
       const taskId = parseInt(taskIdStr, 10);
-      if (isNaN(taskId)) die(`Identifiant de tâche invalide : ${taskIdStr}`);
+      if (isNaN(taskId)) die(`Invalid task ID: ${taskIdStr}`);
       const blockingTaskId = parseInt(blockingTaskIdStr, 10);
-      if (isNaN(blockingTaskId)) die(`Identifiant de tâche bloquante invalide : ${blockingTaskIdStr}`);
+      if (isNaN(blockingTaskId)) die(`Invalid blocking task ID: ${blockingTaskIdStr}`);
 
       try {
         await addTaskDependency(db, featureId, taskId, blockingTaskId);
-        console.log(`Tâche ${taskId} bloquée par la tâche ${blockingTaskId}`);
+        console.log(`Task ${taskId} blocked by task ${blockingTaskId}`);
       } catch (err) {
         die(errMsg(err));
       }
@@ -49,13 +49,13 @@ export function registerDependencyCommands(program: Command): void {
     .action(async (featureId, taskIdStr, blockingTaskIdStr) => {
       const db = await getDb();
       const taskId = parseInt(taskIdStr, 10);
-      if (isNaN(taskId)) die(`Identifiant de tâche invalide : ${taskIdStr}`);
+      if (isNaN(taskId)) die(`Invalid task ID: ${taskIdStr}`);
       const blockingTaskId = parseInt(blockingTaskIdStr, 10);
-      if (isNaN(blockingTaskId)) die(`Identifiant de tâche bloquante invalide : ${blockingTaskIdStr}`);
+      if (isNaN(blockingTaskId)) die(`Invalid blocking task ID: ${blockingTaskIdStr}`);
 
       try {
         await removeTaskDependency(db, featureId, taskId, blockingTaskId);
-        console.log(`Dépendance supprimée : tâche ${taskId} n'est plus bloquée par la tâche ${blockingTaskId}`);
+        console.log(`Dependency removed: task ${taskId} is no longer blocked by task ${blockingTaskId}`);
       } catch (err) {
         die(errMsg(err));
       }
@@ -70,25 +70,25 @@ export function registerDependencyCommands(program: Command): void {
     .action(async (featureId, taskIdStr) => {
       const db = await getDb();
       const taskId = parseInt(taskIdStr, 10);
-      if (isNaN(taskId)) die(`Identifiant de tâche invalide : ${taskIdStr}`);
+      if (isNaN(taskId)) die(`Invalid task ID: ${taskIdStr}`);
 
       try {
         const { blockedBy, blocks } = await listTaskDependencies(db, featureId, taskId);
 
         if (blockedBy.length === 0 && blocks.length === 0) {
-          console.log(`Tâche ${taskId} : aucune dépendance`);
+          console.log(`Task ${taskId}: no dependencies`);
           return;
         }
 
         if (blockedBy.length > 0) {
-          console.log(`Bloqué par (${blockedBy.length}) :`);
+          console.log(`Blocked by (${blockedBy.length}):`);
           for (const t of blockedBy) {
             console.log(`  #${pad(String(t.id), 4)}  ${statusBadge(t.status)}  ${t.title}`);
           }
         }
 
         if (blocks.length > 0) {
-          console.log(`Bloque (${blocks.length}) :`);
+          console.log(`Blocks (${blocks.length}):`);
           for (const t of blocks) {
             console.log(`  #${pad(String(t.id), 4)}  ${statusBadge(t.status)}  ${t.title}`);
           }
