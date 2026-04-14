@@ -34,7 +34,6 @@ Si une ambiguïté sur une tâche nécessite de consulter le PRD de référence 
 
 ```bash
 chip feature export <feature-id>
-# Puis cherche le fichier PRD : _projects/YYYY-MM-DD-<feature-id>.md
 ```
 
 ### 2. Démarrage de la session
@@ -122,6 +121,6 @@ Annonce clairement dans le chat que la phase est terminée. Attends validation a
 - Une phase à la fois. Arrête-toi après avoir terminé et clos la session.
 - Tout le code et les identifiants en anglais. Les commentaires dans le code en anglais.
 - Les logs chip sont factuels et concis — utiles pour un agent qui reprend sans contexte.
-- Si une tâche chip est ambiguë, consulte `chip feature export <feature-id>` et le fichier PRD, puis pose la question.
+- Si une tâche chip est ambiguë, consulte `chip feature export <feature-id>`, puis pose la question.
 - Ne saute pas les mises à jour de statut chip — elles construisent l'historique de la feature.
 - `chip next` est la source de vérité pour savoir quoi faire ensuite. Consulte-le en cas de doute.

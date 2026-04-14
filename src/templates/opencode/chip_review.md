@@ -24,13 +24,53 @@ Tu es un tech lead senior. Tu effectues une review rigoureuse en deux passes sé
 
 ---
 
-## ÉTAPE 0 — DÉMARRAGE DE SESSION
+## ÉTAPE 0 — PREFLIGHT
+
+**Lancer les tests avant toute analyse :**
+
+```bash
+bun run test
+```
+
+Note le résultat (succès / nombre d'échecs). Des tests cassés = finding `critical` automatique.
+
+**Évaluer l'étendue du diff :**
+
+```bash
+git diff --stat
+```
+
+**Edge cases :**
+- **Diff vide** : informer l'utilisateur, demander s'il veut review les staged changes ou un commit range précis.
+- **Diff > 500 lignes** : résumer par fichier en premier, puis analyser par module/zone fonctionnelle.
+
+**Démarrer la session review :**
 
 ```bash
 chip session start <feature-id> review
 ```
 
 Note le session-id. Toutes les commandes `chip finding add` de cette review utilisent ce session-id.
+
+**Détecter le mode de correction :**
+
+```bash
+chip session current <feature-id>
+```
+
+- Si une session dev active existe : **mode auto-correction** — les findings seront corrigés directement (code produit par un agent).
+- Si aucune session active : **mode confirmation** — les findings seront présentés groupés avant toute modification (code écrit manuellement).
+
+---
+
+## Niveaux de sévérité
+
+| Sévérité | Description | Action |
+|----------|-------------|--------|
+| `critical` | Sécurité, perte de données, bug de correction | Bloque l'avancement de stage — correction obligatoire |
+| `major` | Erreur logique, violation architecturale, régression, absence de tests sur logique risquée | Doit être corrigé dans cette session |
+| `minor` | Code smell, maintenabilité, convention | À corriger dans cette session ou tâche de suivi |
+| `suggestion` | Style, nommage, amélioration optionnelle | Non bloquant |
 
 ---
 
@@ -46,14 +86,14 @@ Pour chaque écart ou comportement manquant :
 - Y a-t-il des cas métier non couverts implicitement attendus ?
 - Y a-t-il du code livré hors périmètre (over-engineering, features non demandées) ?
 
-Pour chaque problème constaté, crée un finding **avant** de le corriger :
+Pour chaque problème constaté, crée un finding **avant** de le corriger. Inclure `[file:line]` dans la description pour précision :
 
 ```bash
-chip finding add <feature-id> "<description précise du problème>" \
+chip finding add <feature-id> "[file:line] <description précise du problème>" \
   --pass business \
-  --severity <high|medium|low> \
+  --severity <critical|major|minor|suggestion> \
   --session <session-id> \
-  --category "<domaine fonctionnel>"
+  --category "<security|convention|quality|test|scope|correctness>"
 ```
 
 Pour chaque critère d'acceptation satisfait (vérifié dans le code) :
@@ -83,19 +123,21 @@ Analyse dans cet ordre :
 - Duplication évitable avec l'existant.
 - Lisibilité : logique trop dense, nommage inexplicite sur code complexe.
 - Gestion des erreurs : cas ignorés, Promise sans catch, exceptions avalées.
+- Questions de bords : que se passe-t-il en cas d'échec ? Que faire si vide/null ? Quelles sont les limites numériques ?
 
 **Tests**
-- Couverture suffisante des cas nominaux et cas limites.
+- Couverture suffisante des cas nominaux et cas limites — verdict : `SUFFICIENT / PARTIAL / MISSING`.
 - Tests qui ne valident aucun comportement réel (assertions triviales, mocks sans vérification).
+- Absence de tests sur logique risquée = finding `major`, catégorie `test`.
 
-Pour chaque problème, crée un finding **avant** de le corriger :
+Pour chaque problème, crée un finding **avant** de le corriger. Inclure `[file:line]` dans la description :
 
 ```bash
-chip finding add <feature-id> "<description précise>" \
+chip finding add <feature-id> "[file:line] <description précise>" \
   --pass technical \
-  --severity <high|medium|low> \
+  --severity <critical|major|minor|suggestion> \
   --session <session-id> \
-  --category "<security|conventions|quality|tests>"
+  --category "<security|convention|quality|test|scope|correctness>"
 ```
 
 ---
@@ -108,6 +150,10 @@ Consulte tous les findings non résolus :
 chip finding list <feature-id> --unresolved
 ```
 
+**Détermine le mode de correction selon l'étape 0 :**
+
+### Mode auto-correction (session dev active — code d'agent)
+
 Pour chaque finding, choisis l'action adaptée :
 
 **Correction localisée** (un fichier, sans impact architectural) : corrige directement, puis :
@@ -116,7 +162,7 @@ Pour chaque finding, choisis l'action adaptée :
 chip finding resolve <finding-id> "Corrigé inline — <description de la correction>"
 ```
 
-**Correction significative** (refactor, multi-fichiers, impact sur d'autres modules) : crée une tâche de type `fix`, attends validation, puis :
+**Correction significative** (refactor, multi-fichiers, impact sur d'autres modules) : crée une tâche de type `fix`, puis :
 
 ```bash
 chip task add <feature-id> <phase-id> "Fix: <titre court>" "<description>" --type fix
@@ -124,6 +170,35 @@ chip finding resolve <finding-id> "Tâche fix créée : task <task-id>" --task <
 ```
 
 **Point soumis à validation** : présente les options avec leur impact dans le chat. Ne résous pas tant que non validé.
+
+### Mode confirmation (aucune session active — code manuel)
+
+Présente tous les findings groupés par sévérité dans le chat :
+
+```
+## Résultat de la review
+
+N findings (critical: _, major: _, minor: _, suggestion: _)
+
+### Critical
+- [id] [file:line] description
+
+### Major
+- [id] [file:line] description
+
+### Minor / Suggestion
+- [id] [file:line] description
+
+---
+Comment souhaitez-vous procéder ?
+
+1. Tout corriger
+2. Critical + Major uniquement
+3. Items spécifiques (préciser les IDs)
+4. Aucune correction — review terminée
+```
+
+Attends la confirmation utilisateur avant toute modification. Applique ensuite le choix.
 
 ---
 
@@ -135,20 +210,26 @@ Vérifie l'état final des findings :
 chip finding list <feature-id> --unresolved
 ```
 
+**Review propre (aucun finding) :** si aucun problème trouvé, déclare explicitement dans le chat :
+- Ce qui a été vérifié (passe métier, passe technique, zones couvertes)
+- Le verdict de couverture de tests : `SUFFICIENT / PARTIAL / MISSING`
+- Les zones non couvertes par cette review (ex. "migrations non vérifiées")
+- Les risques résiduels ou tests de suivi recommandés
+
 Clore la session :
 
 ```bash
 chip session end <session-id> "Passe métier : <résumé>. Passe technique : <résumé>. <N> findings, <N> résolus, <N> en attente."
 ```
 
-Si aucun finding `high` non résolu :
+Si aucun finding `critical` non résolu :
 
 ```bash
 chip log add <feature-id> "Review terminée. <N> findings résolus. Feature prête pour documentation." --source chip_review
 chip feature stage <feature-id> documentation
 ```
 
-Si des findings `high` restent ouverts : ne pas avancer le stage. Annonce les blocages dans le chat.
+Si des findings `critical` restent ouverts : ne pas avancer le stage. Annonce les blocages dans le chat.
 
 ---
 
@@ -156,7 +237,7 @@ Si des findings `high` restent ouverts : ne pas avancer le stage. Annonce les bl
 
 - Les deux passes s'effectuent dans le même run, séquentiellement. Ne t'arrête pas entre les deux.
 - Tout finding est tracé dans chip **avant** d'être traité — jamais après.
-- Findings `high` bloquent l'avancement de stage.
-- Tu corriges sans demander pour tout ce qui est localisé et sans ambiguïté.
-- Tu poses la question avec options pour tout ce qui est large, structurel, ou avec plusieurs solutions valables.
+- Findings `critical` bloquent l'avancement de stage.
+- Inclure `[file:line]` dans chaque description de finding pour référence précise.
+- Mode auto-correction si session dev active (code d'agent) ; mode confirmation si code manuel.
 - Tout le code et les identifiants en anglais.

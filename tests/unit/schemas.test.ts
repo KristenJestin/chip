@@ -10,6 +10,8 @@ import {
   UpdateTaskStatusInput,
   AddLogInput,
   ListLogsInput,
+  AddFindingInput,
+  ListFindingsInput,
 } from "../../src/core/schemas";
 
 // ── validate() helper ─────────────────────────────────────────────────────────
@@ -275,5 +277,136 @@ describe("ListLogsInput", () => {
 
   it("rejects a zero phaseId", () => {
     expect(() => validate(ListLogsInput, { featureId: "f", phaseId: 0 })).toThrow();
+  });
+});
+
+// ── AddFindingInput ───────────────────────────────────────────────────────────
+// Regression: templates previously documented severity as high|medium|low and
+// category as free text — both rejected by the actual Zod schema.
+
+describe("AddFindingInput — severity", () => {
+  it("accepts all valid severity values", () => {
+    for (const severity of ["critical", "major", "minor", "suggestion"]) {
+      expect(() =>
+        validate(AddFindingInput, {
+          featureId: "f",
+          description: "desc",
+          pass: "technical",
+          severity,
+        }),
+      ).not.toThrow();
+    }
+  });
+
+  it("rejects 'high' — was incorrectly documented in templates", () => {
+    expect(() =>
+      validate(AddFindingInput, {
+        featureId: "f",
+        description: "desc",
+        pass: "technical",
+        severity: "high",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects 'medium' — was incorrectly documented in templates", () => {
+    expect(() =>
+      validate(AddFindingInput, {
+        featureId: "f",
+        description: "desc",
+        pass: "technical",
+        severity: "medium",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects 'low' — was incorrectly documented in templates", () => {
+    expect(() =>
+      validate(AddFindingInput, {
+        featureId: "f",
+        description: "desc",
+        pass: "technical",
+        severity: "low",
+      }),
+    ).toThrow();
+  });
+});
+
+describe("AddFindingInput — category", () => {
+  it("accepts all valid category values", () => {
+    for (const category of ["security", "convention", "quality", "test", "scope", "correctness"]) {
+      expect(() =>
+        validate(AddFindingInput, {
+          featureId: "f",
+          description: "desc",
+          pass: "technical",
+          severity: "major",
+          category,
+        }),
+      ).not.toThrow();
+    }
+  });
+
+  it("rejects free-text category — was incorrectly documented in templates", () => {
+    expect(() =>
+      validate(AddFindingInput, {
+        featureId: "f",
+        description: "desc",
+        pass: "technical",
+        severity: "major",
+        category: "domaine fonctionnel",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects 'conventions' — was incorrectly documented in templates (valid value is 'convention')", () => {
+    expect(() =>
+      validate(AddFindingInput, {
+        featureId: "f",
+        description: "desc",
+        pass: "technical",
+        severity: "major",
+        category: "conventions",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects 'tests' — was incorrectly documented in templates (valid value is 'test')", () => {
+    expect(() =>
+      validate(AddFindingInput, {
+        featureId: "f",
+        description: "desc",
+        pass: "technical",
+        severity: "major",
+        category: "tests",
+      }),
+    ).toThrow();
+  });
+
+  it("category is optional — omitting it is valid", () => {
+    expect(() =>
+      validate(AddFindingInput, {
+        featureId: "f",
+        description: "desc",
+        pass: "technical",
+        severity: "major",
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe("ListFindingsInput — severity filter", () => {
+  it("accepts all valid severity values as filter", () => {
+    for (const severity of ["critical", "major", "minor", "suggestion"]) {
+      expect(() =>
+        validate(ListFindingsInput, { featureId: "f", severity }),
+      ).not.toThrow();
+    }
+  });
+
+  it("rejects 'high' as severity filter", () => {
+    expect(() =>
+      validate(ListFindingsInput, { featureId: "f", severity: "high" }),
+    ).toThrow();
   });
 });

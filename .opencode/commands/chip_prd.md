@@ -1,8 +1,10 @@
 ---
-description: Analyser un besoin, créer la feature dans chip et générer le PRD structuré
+description: Analyser un besoin, créer la feature dans chip et la structurer pour que le développement puisse démarrer sans ambiguïté
 ---
 
 Tu es un product manager senior exigeant. Ta mission : produire un PRD sans zone grise, créer la feature dans chip et la structurer pour que le développement puisse démarrer sans ambiguïté.
+
+Tout le contenu du PRD est stocké dans chip — pas de fichier markdown séparé. `chip feature export <feature-id>` est la source de vérité à tout moment.
 
 ## Brief reçu
 
@@ -50,81 +52,30 @@ Note le session-id retourné.
 
 ---
 
-## ÉTAPE 3 — GÉNÉRATION DU FICHIER PRD
+## ÉTAPE 3 — STRUCTURATION DANS CHIP
 
-Génère le fichier PRD à la racine du projet :
+### Contexte, périmètre et contraintes
 
-`_projects/YYYY-MM-DD-<feature-id>.md`
+Journalise le contexte, les exclusions explicites et les contraintes comme logs datés :
 
-Date = date du jour. Utilise l'ID chip comme slug — déjà court et explicite.
-
-```
-# PRD — {Titre}
-
-**Feature chip :** `<feature-id>`
-**Statut :** Brouillon
-**Créé le :** YYYY-MM-DD
-
----
-
-## 1. Contexte & Problème
-
-Description du problème réel à résoudre, pas de la solution.
-
-## 2. Objectif
-
-Ce que ce PRD accomplit, en une phrase.
-
-## 3. Périmètre
-
-### Inclus
-- ...
-
-### Exclus (explicitement)
-- ...
-
-## 4. Contraintes & Décisions techniques
-
-Stack imposée, patterns à respecter, contraintes d'architecture, conventions du projet.
-
-## 5. Phases & Tâches
-
-### Phase 1 — {Nom}
-
-**Objectif :** Ce que cette phase livre concrètement.
-**Critères de complétion :** Comment savoir que la phase est terminée.
-
-- {Tâche 1.1} [type: feature|fix|docs|test] — description courte et actionnable
-- {Tâche 1.2} [type: feature] — ...
-
-### Phase 2 — {Nom}
-
-**Objectif :** ...
-**Critères de complétion :** ...
-
-- {Tâche 2.1} [type: feature] — ...
-
-## 6. Critères d'acceptation globaux
-
-- {Critère vérifiable et objectif}
-- ...
-
-## 7. Risques & Questions ouvertes
-
-| Sujet | Impact estimé | Statut |
-|---|---|---|
-| ... | ... | Ouvert |
+```bash
+chip log add <feature-id> "Contexte : <problème exact à résoudre>. Objectif : <en une phrase>." --source chip_prd
+chip log add <feature-id> "Hors périmètre : <liste des exclusions explicites et décisions>." --source chip_prd
+chip log add <feature-id> "Contraintes techniques : <stack, patterns, décisions d'architecture imposées>." --source chip_prd
 ```
 
----
+Pour chaque risque identifié, crée un finding **avant** de structurer les phases :
 
-## ÉTAPE 4 — STRUCTURATION DANS CHIP
+```bash
+chip finding add <feature-id> "<description du risque>" \
+  --pass technical \
+  --severity <critical|major|minor|suggestion> \
+  --session <session-id>
+```
 
-Après avoir créé le fichier PRD, peuple chip avec la structure complète.
+### Phases et tâches
 
-**Phases et tâches** — utilise `chip batch` pour créer tout d'un coup :
-
-Crée un fichier temporaire `_chip_batch.json` :
+Utilise `chip batch` pour créer tout d'un coup. Crée un fichier temporaire `_chip_batch.json` :
 
 ```json
 {
@@ -153,10 +104,12 @@ chip batch <feature-id> --json _chip_batch.json
 rm _chip_batch.json
 ```
 
-**Critères d'acceptation** — un `chip criteria add` par critère global du PRD, et par critère de complétion de phase :
+### Critères d'acceptation
+
+Un `chip criteria add` par critère global et par critère de complétion de phase :
 
 ```bash
-# Critères globaux (section 6 du PRD)
+# Critères globaux
 chip criteria add <feature-id> "Description du critère vérifiable et objectif"
 
 # Critères rattachés à une phase spécifique (critères de complétion)
@@ -165,7 +118,7 @@ chip criteria add <feature-id> "Critère de complétion de la phase 1" --phase 1
 
 ---
 
-## ÉTAPE 5 — FINALISATION
+## ÉTAPE 4 — FINALISATION
 
 ```bash
 # Journaliser la création
@@ -184,9 +137,10 @@ La feature est en stage `planning`. Lance `/chip_dev <feature-id>` pour démarre
 
 ## RÈGLES
 
-- Tout en français dans le PRD et les logs chip, sauf le code, les identifiants techniques et les noms de champs.
+- Tout en français dans les logs chip, sauf le code, les identifiants techniques et les noms de champs.
 - Les tâches chip doivent être atomiques — une tâche = une unité de travail assignable.
 - Les critères chip doivent être objectivement vérifiables (pas "le code est propre", mais "tous les tests passent").
 - Types de tâches : `feature` (nouvelle fonctionnalité), `fix` (correction), `docs` (documentation), `test` (tests uniquement).
 - Un PRD vague n'est pas un PRD — si l'étape 1 laisse des zones grises, repose des questions.
-- Si le scope couvre des domaines métier vraiment distincts, crée plusieurs features chip et autant de PRDs.
+- Si le scope couvre des domaines métier vraiment distincts, crée plusieurs features chip distinctes, chacune structurée séparément.
+- `chip feature export <feature-id>` est la source de vérité pour consulter le contenu du PRD à tout moment.

@@ -120,13 +120,14 @@ chip finding resolve <finding-id> <resolution> [--task <task-id>]
 ```
 
 Pass : `business` | `technical`
-Severity : `high` | `medium` | `low`
+Severity : `critical` | `major` | `minor` | `suggestion`
+Category : `security` | `convention` | `quality` | `test` | `scope` | `correctness`
 
 **Exemples**
 
 ```
-chip finding add auth-module "Token non révoqué à la déconnexion" --pass business --severity high --session 3
-chip finding add auth-module "Variable non utilisée dans auth.service.ts" --pass technical --severity low --session 3
+chip finding add auth-module "Token non révoqué à la déconnexion" --pass business --severity critical --session 3
+chip finding add auth-module "Variable non utilisée dans auth.service.ts" --pass technical --severity minor --session 3
 chip finding list auth-module --unresolved
 chip finding resolve 2 "Corrigé inline — révocation ajoutée dans logout()"
 chip finding resolve 3 "Tâche fix créée : task 8" --task 8
@@ -212,8 +213,8 @@ chip feature stage auth-module review
 
 # 3. REVIEW — deux passes avec findings
 chip session start auth-module review
-chip finding add auth-module "Token non révoqué" --pass business --severity high --session 3
-chip finding add auth-module "Import orphelin" --pass technical --severity low --session 3
+chip finding add auth-module "Token non révoqué" --pass business --severity critical --session 3
+chip finding add auth-module "Import orphelin" --pass technical --severity minor --session 3
 chip finding list auth-module --unresolved
 chip finding resolve 1 "Corrigé inline"
 chip criteria check 1 --source chip_review

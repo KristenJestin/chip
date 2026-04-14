@@ -204,6 +204,7 @@ bun run test:coverage   # coverage report
 - `NO_COLOR=1` is set globally so chalk output is plain text in assertions.
 - Add or update tests for every code change, even if not explicitly requested.
 - All tests must pass before committing.
+- **When a bug is found and fixed, always add a regression test that explicitly documents the incorrect value or behavior, with a comment explaining what was wrong.** The test must fail on the broken code and pass on the fix. This prevents the same bug from silently reappearing.
 
 ## Code style
 
