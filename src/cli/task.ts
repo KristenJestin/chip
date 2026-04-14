@@ -9,6 +9,7 @@ import {
   addTask,
   updateTaskStatus,
 } from "../core/task";
+import { addTaskDependency } from "../core/dependency";
 
 // ── Commander registration ────────────────────────────────────────────────────
 
@@ -25,20 +26,27 @@ export function registerTaskCommands(program: Command): void {
     .argument("[description]", "Task description")
     .option("--type <type>", `Task type (${VALID_TASK_TYPES.join("|")})`, "feature")
     .option("--parent <task-id>", "Parent task ID (for fix/docs/test tasks)")
+    .option("--blocked-by <task-id>", "Block this task until the given task ID is done")
     .action(async (featureId, phaseIdStr, title, description, options) => {
       const db = await getDb();
       const phaseId = parseInt(phaseIdStr, 10);
-      if (isNaN(phaseId)) die(`Invalid phase ID: ${phaseIdStr}`);
+      if (isNaN(phaseId)) die(`Identifiant de phase invalide : ${phaseIdStr}`);
 
       const type = options.type as TaskType;
       if (!(VALID_TASK_TYPES as readonly string[]).includes(type)) {
-        die(`Invalid type: ${type}. Must be one of: ${VALID_TASK_TYPES.join(", ")}`);
+        die(`Type invalide : ${type}. Valeurs acceptées : ${VALID_TASK_TYPES.join(", ")}`);
       }
 
       const parentTaskId =
         options.parent != null ? parseInt(options.parent, 10) : undefined;
       if (parentTaskId !== undefined && isNaN(parentTaskId)) {
-        die(`Invalid parent task ID: ${options.parent}`);
+        die(`Identifiant de tâche parente invalide : ${options.parent}`);
+      }
+
+      const blockedById =
+        options.blockedBy != null ? parseInt(options.blockedBy, 10) : undefined;
+      if (blockedById !== undefined && isNaN(blockedById)) {
+        die(`Identifiant de tâche bloquante invalide : ${options.blockedBy}`);
       }
 
       try {
@@ -46,7 +54,12 @@ export function registerTaskCommands(program: Command): void {
           type,
           parentTaskId,
         });
-        console.log(`Added task ${task.id} to phase ${phaseId}: ${title}`);
+        console.log(`Tâche ${task.id} ajoutée à la phase ${phaseId} : ${title}`);
+
+        if (blockedById !== undefined) {
+          await addTaskDependency(db, featureId, task.id, blockedById);
+          console.log(`Tâche ${task.id} bloquée par la tâche ${blockedById}`);
+        }
       } catch (err) {
         die(errMsg(err));
       }
@@ -60,15 +73,24 @@ export function registerTaskCommands(program: Command): void {
     .argument("<phase-id>", "Phase ID (numeric)")
     .argument("<task-id>", "Task ID (numeric)")
     .argument("<status>", `New status (${VALID_TASK_STATUSES.join("|")})`)
-    .action(async (featureId, phaseIdStr, taskIdStr, statusStr) => {
+    .option("--force", "Forcer la transition même si la tâche est bloquée")
+    .option("--reason <text>", "Raison du forçage (obligatoire avec --force)")
+    .action(async (featureId, phaseIdStr, taskIdStr, statusStr, options) => {
       const db = await getDb();
       const phaseId = parseInt(phaseIdStr, 10);
-      if (isNaN(phaseId)) die(`Invalid phase ID: ${phaseIdStr}`);
+      if (isNaN(phaseId)) die(`Identifiant de phase invalide : ${phaseIdStr}`);
       const taskId = parseInt(taskIdStr, 10);
-      if (isNaN(taskId)) die(`Invalid task ID: ${taskIdStr}`);
+      if (isNaN(taskId)) die(`Identifiant de tâche invalide : ${taskIdStr}`);
       if (!(VALID_TASK_STATUSES as readonly string[]).includes(statusStr)) {
-        die(`Invalid status: ${statusStr}. Must be one of: ${VALID_TASK_STATUSES.join(", ")}`);
+        die(
+          `Statut invalide : ${statusStr}. Valeurs acceptées : ${VALID_TASK_STATUSES.join(", ")}`,
+        );
       }
+
+      if (options.force && !options.reason) {
+        die("--reason <texte> est obligatoire lorsque --force est utilisé");
+      }
+
       try {
         const task = await updateTaskStatus(
           db,
@@ -76,6 +98,7 @@ export function registerTaskCommands(program: Command): void {
           phaseId,
           taskId,
           statusStr as PhaseTaskStatus,
+          { force: options.force, reason: options.reason },
         );
         console.log(`Task ${task.id} status → ${task.status}`);
       } catch (err) {

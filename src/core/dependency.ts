@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { type Db } from "../db/client";
 import { type Task, type TaskDependency } from "../db/types";
 import { tasks, taskDependencies } from "../db/schema";
@@ -189,4 +189,78 @@ export async function checkPhaseOrderingSatisfied(
 
   const incompleteTasks = prevTasks.filter((t): t is Task => t !== null && t.status !== "done");
   return { blocked: incompleteTasks.length > 0, incompleteTasks };
+}
+
+/**
+ * Efficiently fetches all dependency relationships for a set of task IDs in
+ * one batch (two SQL queries total). Used by the feature status display.
+ *
+ * Returns:
+ *   blockedBy — maps taskId → tasks that must finish before it
+ *   blocks    — maps taskId → tasks that this task is blocking
+ */
+export async function getFeatureDependencyMap(
+  db: Db,
+  taskIds: number[],
+): Promise<{ blockedBy: Map<number, Task[]>; blocks: Map<number, Task[]> }> {
+  if (taskIds.length === 0) {
+    return { blockedBy: new Map(), blocks: new Map() };
+  }
+
+  // All rows where a feature task is blocked
+  const blockedByRows = await db
+    .select()
+    .from(taskDependencies)
+    .where(inArray(taskDependencies.taskId, taskIds))
+    .all();
+
+  // All rows where a feature task is the blocker
+  const blocksRows = await db
+    .select()
+    .from(taskDependencies)
+    .where(inArray(taskDependencies.blocksTaskId, taskIds))
+    .all();
+
+  // Collect all referenced task IDs not already in the input set
+  const inputSet = new Set(taskIds);
+  const referencedIds = new Set<number>();
+  for (const d of blockedByRows) {
+    if (!inputSet.has(d.blocksTaskId)) referencedIds.add(d.blocksTaskId);
+  }
+  for (const d of blocksRows) {
+    if (!inputSet.has(d.taskId)) referencedIds.add(d.taskId);
+  }
+
+  // Load referenced tasks (may be from other phases/features)
+  const extraTasks =
+    referencedIds.size > 0
+      ? await db.select().from(tasks).where(inArray(tasks.id, [...referencedIds])).all()
+      : [];
+
+  // Also load feature tasks themselves (needed as values in maps)
+  const ownTasks = await db.select().from(tasks).where(inArray(tasks.id, taskIds)).all();
+  const taskMap = new Map<number, Task>([
+    ...ownTasks.map((t): [number, Task] => [t.id, t]),
+    ...extraTasks.map((t): [number, Task] => [t.id, t]),
+  ]);
+
+  const blockedBy = new Map<number, Task[]>();
+  for (const dep of blockedByRows) {
+    const blocker = taskMap.get(dep.blocksTaskId);
+    if (!blocker) continue;
+    const list = blockedBy.get(dep.taskId) ?? [];
+    list.push(blocker);
+    blockedBy.set(dep.taskId, list);
+  }
+
+  const blocks = new Map<number, Task[]>();
+  for (const dep of blocksRows) {
+    const blocked = taskMap.get(dep.taskId);
+    if (!blocked) continue;
+    const list = blocks.get(dep.blocksTaskId) ?? [];
+    list.push(blocked);
+    blocks.set(dep.blocksTaskId, list);
+  }
+
+  return { blockedBy, blocks };
 }
