@@ -8,6 +8,7 @@ import { logTools } from "../../src/plugin/tools/log";
 import { findingTools } from "../../src/plugin/tools/finding";
 import { criteriaTools } from "../../src/plugin/tools/criteria";
 import { agentTools } from "../../src/plugin/tools/agent";
+import { dependencyTools } from "../../src/plugin/tools/dependency";
 
 // Minimal stub — our tools don't use the ToolContext
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -225,6 +226,40 @@ describe("taskTools", () => {
     ) as { status: string };
     expect(result.status).toBe("in-progress");
   });
+
+  it("chip_task_status throws when task is blocked and tells the agent to ask the user", async () => {
+    const db = await createTestDb();
+    await featureTools(db).chip_feature_create.execute({ title: "Force Feature" }, ctx);
+    const pt = phaseTools(db);
+    // Phase 1 (blocker phase)
+    const phase1 = parse(
+      await pt.chip_phase_add.execute({ featureId: "force-feature", title: "Phase 1" }, ctx),
+    ) as { id: number };
+    // Phase 2 (target phase — will be blocked by phase 1 ordering)
+    const phase2 = parse(
+      await pt.chip_phase_add.execute({ featureId: "force-feature", title: "Phase 2" }, ctx),
+    ) as { id: number };
+    const tt = taskTools(db);
+    // A task in phase 1 (not yet done)
+    await tt.chip_task_add.execute(
+      { featureId: "force-feature", phaseId: phase1.id, title: "Phase 1 Task" },
+      ctx,
+    );
+    // A task in phase 2
+    const task2 = parse(
+      await tt.chip_task_add.execute(
+        { featureId: "force-feature", phaseId: phase2.id, title: "Phase 2 Task" },
+        ctx,
+      ),
+    ) as { id: number };
+    // Must fail with a message directing the agent to ask the user
+    await expect(
+      tt.chip_task_status.execute(
+        { featureId: "force-feature", phaseId: phase2.id, taskId: task2.id, status: "in-progress" },
+        ctx,
+      ),
+    ).rejects.toThrow(/ask the user how to proceed/i);
+  });
 });
 
 // ── logTools ──────────────────────────────────────────────────────────────────
@@ -389,6 +424,50 @@ describe("agentTools", () => {
     expect(result.stage).toBe("planning");
   });
 
+  it("chip_next annotates blocked pending tasks with their blocker names", async () => {
+    const db = await createTestDb();
+    await featureTools(db).chip_feature_create.execute({ title: "Blocking Feature" }, ctx);
+    const phase = parse(
+      await phaseTools(db).chip_phase_add.execute(
+        { featureId: "blocking-feature", title: "Phase 1" },
+        ctx,
+      ),
+    ) as { id: number };
+    const tt = taskTools(db);
+    const taskA = parse(
+      await tt.chip_task_add.execute(
+        { featureId: "blocking-feature", phaseId: phase.id, title: "Task A" },
+        ctx,
+      ),
+    ) as { id: number };
+    const taskB = parse(
+      await tt.chip_task_add.execute(
+        { featureId: "blocking-feature", phaseId: phase.id, title: "Task B" },
+        ctx,
+      ),
+    ) as { id: number };
+    // B is blocked by A
+    await dependencyTools(db).chip_task_dep_add.execute(
+      { featureId: "blocking-feature", taskId: taskB.id, blockingTaskId: taskA.id },
+      ctx,
+    );
+
+    const result = parse(
+      await agentTools(db).chip_next.execute({ featureId: "blocking-feature" }, ctx),
+    ) as { pendingTasks: Array<{ id: number; title: string; blockedBy: Array<{ id: number; title: string }> }> };
+
+    const pendingA = result.pendingTasks.find((t) => t.id === taskA.id);
+    const pendingB = result.pendingTasks.find((t) => t.id === taskB.id);
+    expect(pendingA).toBeDefined();
+    expect(pendingA!.blockedBy).toHaveLength(0);
+
+    // Task B must report Task A as its active blocker
+    expect(pendingB).toBeDefined();
+    expect(pendingB!.blockedBy).toHaveLength(1);
+    expect(pendingB!.blockedBy[0].id).toBe(taskA.id);
+    expect(pendingB!.blockedBy[0].title).toBe("Task A");
+  });
+
   it("chip_batch creates phases and tasks in bulk", async () => {
     const db = await createTestDb();
     await featureTools(db).chip_feature_create.execute({ title: "Batch Feature" }, ctx);
@@ -412,9 +491,38 @@ describe("agentTools", () => {
         },
         ctx,
       ),
-    ) as { phasesCreated: number; tasksCreated: number };
+    ) as { phasesCreated: number; tasksCreated: number; depsCreated: number };
     expect(result.phasesCreated).toBe(2);
     expect(result.tasksCreated).toBe(3);
+    expect(result.depsCreated).toBe(0);
+  });
+
+  it("chip_batch with ref/blockedBy creates deps and returns depsCreated", async () => {
+    const db = await createTestDb();
+    await featureTools(db).chip_feature_create.execute({ title: "Batch Dep Feature" }, ctx);
+    const tools = agentTools(db);
+    const result = parse(
+      await tools.chip_batch.execute(
+        {
+          featureId: "batch-dep-feature",
+          payload: {
+            phases: [
+              {
+                title: "Phase 1",
+                tasks: [
+                  { title: "Task A", ref: "a" },
+                  { title: "Task B", ref: "b", blockedBy: ["a"] },
+                ],
+              },
+            ],
+          },
+        },
+        ctx,
+      ),
+    ) as { phasesCreated: number; tasksCreated: number; depsCreated: number };
+    expect(result.phasesCreated).toBe(1);
+    expect(result.tasksCreated).toBe(2);
+    expect(result.depsCreated).toBe(1);
   });
 
   it("chip_batch throws on invalid feature id", async () => {
@@ -426,6 +534,118 @@ describe("agentTools", () => {
           featureId: "nonexistent",
           payload: { phases: [{ title: "P1", tasks: [{ title: "T1" }] }] },
         },
+        ctx,
+      ),
+    ).rejects.toThrow();
+  });
+});
+
+// ── dependencyTools ───────────────────────────────────────────────────────────
+
+describe("dependencyTools", () => {
+  async function setup() {
+    const db = await createTestDb();
+    await featureTools(db).chip_feature_create.execute({ title: "Dep Feature" }, ctx);
+    const phase = parse(
+      await phaseTools(db).chip_phase_add.execute(
+        { featureId: "dep-feature", title: "P1" },
+        ctx,
+      ),
+    ) as { id: number };
+    const tt = taskTools(db);
+    const taskA = parse(
+      await tt.chip_task_add.execute(
+        { featureId: "dep-feature", phaseId: phase.id, title: "Task A" },
+        ctx,
+      ),
+    ) as { id: number };
+    const taskB = parse(
+      await tt.chip_task_add.execute(
+        { featureId: "dep-feature", phaseId: phase.id, title: "Task B" },
+        ctx,
+      ),
+    ) as { id: number };
+    return { db, taskA, taskB };
+  }
+
+  it("chip_task_dep_add creates a dependency and returns it", async () => {
+    const { db, taskA, taskB } = await setup();
+    const tools = dependencyTools(db);
+    const result = parse(
+      await tools.chip_task_dep_add.execute(
+        { featureId: "dep-feature", taskId: taskB.id, blockingTaskId: taskA.id },
+        ctx,
+      ),
+    ) as { taskId: number; blocksTaskId: number };
+    expect(result.taskId).toBe(taskB.id);
+    expect(result.blocksTaskId).toBe(taskA.id);
+  });
+
+  it("chip_task_dep_list returns blockedBy and blocks arrays", async () => {
+    const { db, taskA, taskB } = await setup();
+    const tools = dependencyTools(db);
+    await tools.chip_task_dep_add.execute(
+      { featureId: "dep-feature", taskId: taskB.id, blockingTaskId: taskA.id },
+      ctx,
+    );
+
+    const depsB = parse(
+      await tools.chip_task_dep_list.execute(
+        { featureId: "dep-feature", taskId: taskB.id },
+        ctx,
+      ),
+    ) as { blockedBy: { id: number }[]; blocks: unknown[] };
+    expect(depsB.blockedBy).toHaveLength(1);
+    expect(depsB.blockedBy[0].id).toBe(taskA.id);
+    expect(depsB.blocks).toHaveLength(0);
+
+    const depsA = parse(
+      await tools.chip_task_dep_list.execute(
+        { featureId: "dep-feature", taskId: taskA.id },
+        ctx,
+      ),
+    ) as { blockedBy: unknown[]; blocks: { id: number }[] };
+    expect(depsA.blocks).toHaveLength(1);
+    expect(depsA.blocks[0].id).toBe(taskB.id);
+    expect(depsA.blockedBy).toHaveLength(0);
+  });
+
+  it("chip_task_dep_remove removes the dependency", async () => {
+    const { db, taskA, taskB } = await setup();
+    const tools = dependencyTools(db);
+    await tools.chip_task_dep_add.execute(
+      { featureId: "dep-feature", taskId: taskB.id, blockingTaskId: taskA.id },
+      ctx,
+    );
+    const removed = parse(
+      await tools.chip_task_dep_remove.execute(
+        { featureId: "dep-feature", taskId: taskB.id, blockingTaskId: taskA.id },
+        ctx,
+      ),
+    ) as { removed: boolean };
+    expect(removed.removed).toBe(true);
+
+    const depsB = parse(
+      await tools.chip_task_dep_list.execute(
+        { featureId: "dep-feature", taskId: taskB.id },
+        ctx,
+      ),
+    ) as { blockedBy: unknown[] };
+    expect(depsB.blockedBy).toHaveLength(0);
+  });
+
+  it("chip_task_dep_add rejects a cycle", async () => {
+    const { db, taskA, taskB } = await setup();
+    const tools = dependencyTools(db);
+    // B blocked by A
+    await tools.chip_task_dep_add.execute(
+      { featureId: "dep-feature", taskId: taskB.id, blockingTaskId: taskA.id },
+      ctx,
+    );
+    // A blocked by B → cycle
+    await expect(
+      tools.chip_task_dep_add.execute(
+        { featureId: "dep-feature", taskId: taskA.id, blockingTaskId: taskB.id },
         ctx,
       ),
     ).rejects.toThrow();

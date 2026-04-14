@@ -16,6 +16,23 @@ export async function assertFeatureExists(db: Db, featureId: string): Promise<vo
   if (!row) throw new Error(`Feature not found: ${featureId}`);
 }
 
+/**
+ * Throws if the feature does not exist or is not in the planning stage.
+ * Dependency add/remove operations are only allowed during planning.
+ */
+export async function assertFeatureInPlanning(db: Db, featureId: string): Promise<void> {
+  const row = await db.query.features.findFirst({
+    where: { id: featureId },
+    columns: { id: true, stage: true },
+  });
+  if (!row) throw new Error(`Feature not found: ${featureId}`);
+  if (row.stage !== "planning") {
+    throw new Error(
+      `Cannot modify dependencies: feature "${featureId}" is not in planning stage (current: ${row.stage})`,
+    );
+  }
+}
+
 // ── Phase guards ──────────────────────────────────────────────────────────────
 
 /**

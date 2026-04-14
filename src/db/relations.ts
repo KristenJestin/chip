@@ -21,6 +21,28 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.tasks.phaseId,
       to: r.phases.id,
     }),
+    // Dependencies where this task is blocked (taskDependencies.taskId = tasks.id)
+    blockedByDeps: r.many.taskDependencies({
+      from: r.tasks.id,
+      to: r.taskDependencies.taskId,
+    }),
+    // Dependencies where this task is the blocker (taskDependencies.blocksTaskId = tasks.id)
+    blocksDeps: r.many.taskDependencies({
+      from: r.tasks.id,
+      to: r.taskDependencies.blocksTaskId,
+    }),
+  },
+  taskDependencies: {
+    // The task that is blocked by this dependency
+    blockedTask: r.one.tasks({
+      from: r.taskDependencies.taskId,
+      to: r.tasks.id,
+    }),
+    // The task that must be done first (the blocker)
+    blockerTask: r.one.tasks({
+      from: r.taskDependencies.blocksTaskId,
+      to: r.tasks.id,
+    }),
   },
   logs: {
     feature: r.one.features({

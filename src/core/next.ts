@@ -1,7 +1,8 @@
 import { type Db } from "../db/client";
-import { type Feature, type Task, type Finding, type Criterion, type Session } from "../db/types";
+import { type Feature, type Finding, type Criterion, type Session, type PendingTaskDiagnostic } from "../db/types";
 import { validate } from "./validate";
 import { NextInput } from "./schemas";
+import { getFeatureDependencyMap } from "./dependency";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -9,7 +10,7 @@ export type NextDiagnostic = {
   feature: Feature;
   stage: string;
   activeSession: Session | null;
-  pendingTasks: Task[];
+  pendingTasks: PendingTaskDiagnostic[];
   unresolvedFindings: Finding[];
   unsatisfiedCriteria: Criterion[];
   nextAction: string;
@@ -42,9 +43,24 @@ export async function getNext(db: Db, featureId: string): Promise<NextDiagnostic
     })) ?? null;
 
   const allTasks = feature.phases.flatMap((p) => p.tasks);
-  const pendingTasks = allTasks.filter(
+  const rawPendingTasks = allTasks.filter(
     (t) => t.status === "todo" || t.status === "in-progress",
   );
+
+  // Enrich each pending task with its active blockers (blockers not yet done)
+  let pendingTasks: PendingTaskDiagnostic[];
+  if (rawPendingTasks.length > 0) {
+    const pendingIds = rawPendingTasks.map((t) => t.id);
+    const depMap = await getFeatureDependencyMap(db, pendingIds);
+    pendingTasks = rawPendingTasks.map((t) => ({
+      ...t,
+      // Only include blockers that are not yet done (actively blocking)
+      blockedBy: (depMap.blockedBy.get(t.id) ?? []).filter((b) => b.status !== "done"),
+    }));
+  } else {
+    pendingTasks = [];
+  }
+
   const unresolvedFindings = feature.findings.filter((f) => f.resolution == null);
   const unsatisfiedCriteria = feature.criteria.filter((c) => !c.satisfied);
 

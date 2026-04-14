@@ -45,6 +45,12 @@ export async function getDb(): Promise<Db> {
 
   ensureInit();
   const dbPath = getDbPath();
-  _db = await openDb(`file:${dbPath}`, path.join(__dirname, "migrations"));
+  const migrationsFolder = path.join(__dirname, "migrations");
+  // In dev (bun src/...), __dirname = src/db — migrations live in drizzle/
+  // In prod (dist/), __dirname = dist — migrations are copied to dist/migrations
+  const resolvedMigrations = fs.existsSync(migrationsFolder)
+    ? migrationsFolder
+    : path.join(__dirname, "../../drizzle");
+  _db = await openDb(`file:${dbPath}`, resolvedMigrations);
   return _db;
 }

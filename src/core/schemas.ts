@@ -5,7 +5,8 @@ import * as z from "zod";
 const nonEmptyString = z.string().min(1, "Must not be empty");
 const positiveInt = z.number().int().positive();
 const featureStatus = z.enum(["active", "done", "archived"]);
-const phaseTaskStatus = z.enum(["todo", "in-progress", "review", "done"]);
+const phaseStatus = z.enum(["todo", "in-progress", "review", "done"]);
+const taskStatus = z.enum(["todo", "in-progress", "done"]);
 const featureStage = z.enum(["planning", "development", "review", "documentation", "released"]);
 const sessionType = z.enum(["prd", "dev", "review", "docs"]);
 const sessionStatus = z.enum(["active", "completed", "aborted"]);
@@ -59,7 +60,7 @@ export type AddPhaseInput = z.infer<typeof AddPhaseInput>;
 export const UpdatePhaseStatusInput = z.object({
   featureId: nonEmptyString,
   phaseId: positiveInt,
-  status: phaseTaskStatus,
+  status: phaseStatus,
 });
 export type UpdatePhaseStatusInput = z.infer<typeof UpdatePhaseStatusInput>;
 
@@ -83,7 +84,7 @@ export const UpdateTaskStatusInput = z.object({
   featureId: nonEmptyString,
   phaseId: positiveInt,
   taskId: positiveInt,
-  status: phaseTaskStatus,
+  status: taskStatus,
 });
 export type UpdateTaskStatusInput = z.infer<typeof UpdateTaskStatusInput>;
 
@@ -182,6 +183,22 @@ export const ListCriteriaInput = z.object({
 });
 export type ListCriteriaInput = z.infer<typeof ListCriteriaInput>;
 
+// ── Dependency schemas ────────────────────────────────────────────────────────
+
+export const AddTaskDependencyInput = z.object({
+  featureId: nonEmptyString,
+  taskId: positiveInt,
+  blockingTaskId: positiveInt,
+});
+export type AddTaskDependencyInput = z.infer<typeof AddTaskDependencyInput>;
+
+export const RemoveTaskDependencyInput = z.object({
+  featureId: nonEmptyString,
+  taskId: positiveInt,
+  blockingTaskId: positiveInt,
+});
+export type RemoveTaskDependencyInput = z.infer<typeof RemoveTaskDependencyInput>;
+
 // ── Agent command schemas ─────────────────────────────────────────────────────
 
 export const NextInput = z.object({
@@ -193,6 +210,8 @@ export const BatchTaskSpec = z.object({
   title: nonEmptyString,
   description: z.string().optional(),
   type: taskType.optional(),
+  ref: z.string().min(1).optional(),
+  blockedBy: z.array(z.string().min(1)).optional(),
 });
 export type BatchTaskSpec = z.infer<typeof BatchTaskSpec>;
 

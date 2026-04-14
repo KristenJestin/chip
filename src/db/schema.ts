@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const features = sqliteTable("features", {
   id: text("id").primaryKey(),
@@ -40,7 +40,7 @@ export const tasks = sqliteTable("tasks", {
   order: integer("order").notNull(),
   title: text("title").notNull(),
   description: text("description"),
-  status: text("status", { enum: ["todo", "in-progress", "review", "done"] })
+  status: text("status", { enum: ["todo", "in-progress", "done"] })
     .notNull()
     .default("todo"),
   type: text("type", { enum: ["feature", "fix", "docs", "test"] })
@@ -108,3 +108,20 @@ export const criteria = sqliteTable("criteria", {
   verifiedBy: text("verified_by"),
   createdAt: integer("created_at").notNull(),
 });
+
+export const taskDependencies = sqliteTable(
+  "task_dependencies",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    // The task that is blocked (cannot proceed until blocksTaskId is done)
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    // The task that must be completed first (the blocker)
+    blocksTaskId: integer("blocks_task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("task_dep_unique").on(t.taskId, t.blocksTaskId)],
+);
