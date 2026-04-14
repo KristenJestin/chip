@@ -12,7 +12,7 @@ import { nowUnix } from "../utils/time";
 import { validate } from "./validate";
 import { AddTaskInputV2, UpdateTaskStatusInput } from "./schemas";
 
-export const VALID_TASK_STATUSES = ["todo", "in-progress", "review", "done"] as const;
+export const VALID_TASK_STATUSES = ["todo", "in-progress", "done"] as const;
 export type PhaseTaskStatus = (typeof VALID_TASK_STATUSES)[number];
 
 export const VALID_TASK_TYPES = ["feature", "fix", "docs", "test"] as const;

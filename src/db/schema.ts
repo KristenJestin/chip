@@ -40,7 +40,7 @@ export const tasks = sqliteTable("tasks", {
   order: integer("order").notNull(),
   title: text("title").notNull(),
   description: text("description"),
-  status: text("status", { enum: ["todo", "in-progress", "review", "done"] })
+  status: text("status", { enum: ["todo", "in-progress", "done"] })
     .notNull()
     .default("todo"),
   type: text("type", { enum: ["feature", "fix", "docs", "test"] })

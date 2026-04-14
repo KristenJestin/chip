@@ -5,7 +5,8 @@ import * as z from "zod";
 const nonEmptyString = z.string().min(1, "Must not be empty");
 const positiveInt = z.number().int().positive();
 const featureStatus = z.enum(["active", "done", "archived"]);
-const phaseTaskStatus = z.enum(["todo", "in-progress", "review", "done"]);
+const phaseStatus = z.enum(["todo", "in-progress", "review", "done"]);
+const taskStatus = z.enum(["todo", "in-progress", "done"]);
 const featureStage = z.enum(["planning", "development", "review", "documentation", "released"]);
 const sessionType = z.enum(["prd", "dev", "review", "docs"]);
 const sessionStatus = z.enum(["active", "completed", "aborted"]);
@@ -59,7 +60,7 @@ export type AddPhaseInput = z.infer<typeof AddPhaseInput>;
 export const UpdatePhaseStatusInput = z.object({
   featureId: nonEmptyString,
   phaseId: positiveInt,
-  status: phaseTaskStatus,
+  status: phaseStatus,
 });
 export type UpdatePhaseStatusInput = z.infer<typeof UpdatePhaseStatusInput>;
 
@@ -83,7 +84,7 @@ export const UpdateTaskStatusInput = z.object({
   featureId: nonEmptyString,
   phaseId: positiveInt,
   taskId: positiveInt,
-  status: phaseTaskStatus,
+  status: taskStatus,
 });
 export type UpdateTaskStatusInput = z.infer<typeof UpdateTaskStatusInput>;
 

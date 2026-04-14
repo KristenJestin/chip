@@ -29,7 +29,7 @@ export function taskTools(db: Db): Record<string, ToolDefinition> {
         featureId: tool.schema.string().min(1),
         phaseId: tool.schema.number().int().positive(),
         taskId: tool.schema.number().int().positive(),
-        status: tool.schema.enum(["todo", "in-progress", "review", "done"]),
+        status: tool.schema.enum(["todo", "in-progress", "done"]),
       },
       async execute(args) {
         const task = await updateTaskStatus(
