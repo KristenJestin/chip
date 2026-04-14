@@ -183,6 +183,22 @@ export const ListCriteriaInput = z.object({
 });
 export type ListCriteriaInput = z.infer<typeof ListCriteriaInput>;
 
+// ── Dependency schemas ────────────────────────────────────────────────────────
+
+export const AddTaskDependencyInput = z.object({
+  featureId: nonEmptyString,
+  taskId: positiveInt,
+  blockingTaskId: positiveInt,
+});
+export type AddTaskDependencyInput = z.infer<typeof AddTaskDependencyInput>;
+
+export const RemoveTaskDependencyInput = z.object({
+  featureId: nonEmptyString,
+  taskId: positiveInt,
+  blockingTaskId: positiveInt,
+});
+export type RemoveTaskDependencyInput = z.infer<typeof RemoveTaskDependencyInput>;
+
 // ── Agent command schemas ─────────────────────────────────────────────────────
 
 export const NextInput = z.object({

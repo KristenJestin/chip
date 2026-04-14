@@ -11,6 +11,8 @@ import {
 import { nowUnix } from "../utils/time";
 import { validate } from "./validate";
 import { AddTaskInputV2, UpdateTaskStatusInput } from "./schemas";
+import { checkDependenciesSatisfied, checkPhaseOrderingSatisfied } from "./dependency";
+import { addFinding } from "./finding";
 
 export const VALID_TASK_STATUSES = ["todo", "in-progress", "done"] as const;
 export type PhaseTaskStatus = (typeof VALID_TASK_STATUSES)[number];
@@ -68,11 +70,45 @@ export async function updateTaskStatus(
   phaseId: number,
   taskId: number,
   status: PhaseTaskStatus,
+  options?: { force?: boolean; reason?: string },
 ): Promise<Task> {
   validate(UpdateTaskStatusInput, { featureId, phaseId, taskId, status });
   await assertFeatureExists(db, featureId);
   await assertPhaseExists(db, phaseId, featureId);
   await assertTaskExists(db, taskId, phaseId);
+
+  // Enforce blocking checks when moving to in-progress or done
+  if (status === "in-progress" || status === "done") {
+    const depCheck = await checkDependenciesSatisfied(db, taskId);
+    const phaseCheck = await checkPhaseOrderingSatisfied(db, phaseId);
+    const isBlocked = depCheck.blocked || phaseCheck.blocked;
+
+    if (isBlocked) {
+      if (!options?.force) {
+        const blockerNames = [
+          ...depCheck.blockers.map((t) => `task ${t.id} "${t.title}"`),
+          ...phaseCheck.incompleteTasks.map((t) => `task ${t.id} "${t.title}" (phase ordering)`),
+        ];
+        throw new Error(
+          `Task ${taskId} is blocked by: ${blockerNames.join(", ")}. Use force with a reason to override.`,
+        );
+      }
+
+      if (!options.reason) {
+        throw new Error(
+          "A reason is required when forcing a blocked task status transition",
+        );
+      }
+
+      // Record forced override as a critical finding
+      await addFinding(
+        db,
+        featureId,
+        `Forced status override on task ${taskId} to "${status}": ${options.reason}`,
+        { pass: "technical", severity: "critical", category: "correctness" },
+      );
+    }
+  }
 
   const now = nowUnix();
   const updates: { status: PhaseTaskStatus; startedAt?: number; completedAt?: number } = { status };
