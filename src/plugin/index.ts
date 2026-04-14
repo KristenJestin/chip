@@ -11,6 +11,7 @@ import { findingTools } from "./tools/finding";
 import { criteriaTools } from "./tools/criteria";
 import { agentTools } from "./tools/agent";
 import { dependencyTools } from "./tools/dependency";
+import { eventTools } from "./tools/event";
 
 const _dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -31,6 +32,7 @@ export const plugin: PluginModule = {
         ...criteriaTools(db),
         ...agentTools(db),
         ...dependencyTools(db),
+        ...eventTools(db),
       },
     };
   },

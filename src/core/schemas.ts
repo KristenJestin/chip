@@ -237,3 +237,89 @@ export const SummaryInput = z.object({
   featureId: nonEmptyString,
 });
 export type SummaryInput = z.infer<typeof SummaryInput>;
+
+// ── Event schemas ─────────────────────────────────────────────────────────────
+
+export const eventKind = z.enum(["task_result", "correction", "decision", "phase_summary"]);
+export type EventKind = z.infer<typeof eventKind>;
+
+/**
+ * task_result: emitted by a sub-agent upon completing (or failing) a task.
+ * Carries the list of modified files, decisions, issues, and test outcome.
+ */
+export const TaskResultData = z.object({
+  files: z.object({
+    created: z.array(z.string()),
+    modified: z.array(z.string()),
+    deleted: z.array(z.string()),
+  }),
+  decisions: z.array(z.string()),
+  issues: z.array(z.string()),
+  test_result: z.object({
+    passed: z.boolean(),
+    count: z.number().int().nonnegative(),
+  }),
+});
+export type TaskResultData = z.infer<typeof TaskResultData>;
+
+/**
+ * correction: emitted by chip_review when a finding is auto-corrected.
+ * Captures root cause, fix description, and impacted files.
+ */
+export const CorrectionData = z.object({
+  root_cause: nonEmptyString,
+  fix: nonEmptyString,
+  files: z.array(z.string()),
+});
+export type CorrectionData = z.infer<typeof CorrectionData>;
+
+/**
+ * decision: captures a significant architectural or implementation decision.
+ * Useful for auditing why a direction was chosen over alternatives.
+ */
+export const DecisionData = z.object({
+  context: nonEmptyString,
+  options: z.array(z.string()).min(1),
+  chosen: nonEmptyString,
+  rationale: nonEmptyString,
+});
+export type DecisionData = z.infer<typeof DecisionData>;
+
+/**
+ * phase_summary: emitted at phase completion with a delivery and quality summary.
+ */
+export const PhaseSummaryData = z.object({
+  delivered: z.array(nonEmptyString).min(1),
+  coverage_verdict: z.enum(["SUFFICIENT", "PARTIAL", "MISSING"]),
+  risks: z.array(z.string()),
+});
+export type PhaseSummaryData = z.infer<typeof PhaseSummaryData>;
+
+/** Union of all event data schemas, keyed by kind. */
+export const EVENT_DATA_SCHEMAS = {
+  task_result: TaskResultData,
+  correction: CorrectionData,
+  decision: DecisionData,
+  phase_summary: PhaseSummaryData,
+} as const satisfies Record<EventKind, z.ZodTypeAny>;
+
+export const AddEventInput = z.object({
+  featureId: nonEmptyString,
+  kind: eventKind,
+  data: z.unknown(), // validated against kind-specific schema in core service
+  phaseId: positiveInt.optional(),
+  taskId: positiveInt.optional(),
+  findingId: positiveInt.optional(),
+  sessionId: positiveInt.optional(),
+  source: z.string().optional(),
+});
+export type AddEventInput = z.infer<typeof AddEventInput>;
+
+export const ListEventsInput = z.object({
+  featureId: nonEmptyString,
+  kind: eventKind.optional(),
+  taskId: positiveInt.optional(),
+  findingId: positiveInt.optional(),
+  sessionId: positiveInt.optional(),
+});
+export type ListEventsInput = z.infer<typeof ListEventsInput>;

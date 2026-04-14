@@ -1,8 +1,8 @@
 ---
-description: Review complète en deux passes (métier + technique) avec tracking des findings dans chip
+description: Review complète en trois passes (métier + technique + tests) avec tracking des findings dans chip
 ---
 
-Tu es un tech lead senior. Tu effectues une review rigoureuse en deux passes séquentielles, avec chaque finding tracé dans chip avant d'être traité.
+Tu es un tech lead senior. Tu effectues une review rigoureuse en trois passes séquentielles, avec chaque finding tracé dans chip avant d'être traité.
 
 ## Feature cible
 
@@ -125,11 +125,6 @@ Analyse dans cet ordre :
 - Gestion des erreurs : cas ignorés, Promise sans catch, exceptions avalées.
 - Questions de bords : que se passe-t-il en cas d'échec ? Que faire si vide/null ? Quelles sont les limites numériques ?
 
-**Tests**
-- Couverture suffisante des cas nominaux et cas limites — verdict : `SUFFICIENT / PARTIAL / MISSING`.
-- Tests qui ne valident aucun comportement réel (assertions triviales, mocks sans vérification).
-- Absence de tests sur logique risquée = finding `major`, catégorie `test`.
-
 Pour chaque problème, crée un finding **avant** de le corriger. Inclure `[file:line]` dans la description :
 
 ```bash
@@ -138,6 +133,53 @@ chip finding add <feature-id> "[file:line] <description précise>" \
   --severity <critical|major|minor|suggestion> \
   --session <session-id> \
   --category "<security|convention|quality|test|scope|correctness>"
+```
+
+---
+
+## PASSE 3 — REVUE TESTS
+
+Annonce le début de la passe tests dans le chat.
+
+**Mandat :** lire les fichiers de test du nouveau code et évaluer leur couverture réelle. Cette passe ne se limite pas à constater que les tests passent — elle vérifie qu'ils testent les bons comportements.
+
+**Identifier les fichiers de test impactés :**
+
+Pour chaque nouveau fichier ou module livré, identifie son fichier de test correspondant et lis-le explicitement avec l'outil Read.
+
+**Critères d'analyse :**
+
+- Chaque nouvelle fonction ou module est-il couvert par au moins un test ?
+- Les assertions vérifient-elles un comportement réel (pas d'assertions triviales `expect(true).toBe(true)`, mocks sans vérification, test qui passe toujours) ?
+- Les chemins d'erreur sont-ils couverts (erreur renvoyée, entité manquante, état incorrect) ?
+- Les cas limites pertinents sont-ils présents (valeur vide, null, max, concurrence, etc.) ?
+
+**Verdict obligatoire :**
+
+Évalue la couverture globale du code livré selon ces critères :
+
+| Verdict | Critères |
+|---------|----------|
+| `SUFFICIENT` | Cas nominal + cas d'erreur + au moins un cas limite couverts pour chaque nouveau module |
+| `PARTIAL` | Cas nominal couvert, mais manques identifiables (chemins d'erreur ou cas limites absents) |
+| `MISSING` | Nouveau code sans aucun test, ou tests existants non mis à jour pour couvrir le nouveau code |
+
+**`PARTIAL` ou `MISSING` génèrent automatiquement un finding `major`, catégorie `test` :**
+
+```bash
+chip finding add <feature-id> "[tests] Couverture <PARTIAL|MISSING> — <description des manques>" \
+  --pass technical \
+  --severity major \
+  --session <session-id> \
+  --category "test"
+```
+
+Annonce le verdict dans le chat avec les justifications :
+
+```
+Passe 3 Tests — verdict : <SUFFICIENT|PARTIAL|MISSING>
+Modules couverts : ...
+Manques identifiés : ...
 ```
 
 ---
@@ -156,16 +198,29 @@ chip finding list <feature-id> --unresolved
 
 Pour chaque finding, choisis l'action adaptée :
 
-**Correction localisée** (un fichier, sans impact architectural) : corrige directement, puis :
+**Correction localisée** (un fichier, sans impact architectural) : corrige directement, puis émets un event `correction` **avant** de résoudre :
 
 ```bash
+chip event add <feature-id> \
+  --kind correction \
+  --data '{"root_cause": "<cause racine précise>", "fix": "<description de la correction>", "files": ["path/to/file.ts"]}' \
+  --finding <finding-id> \
+  --session <session-id> \
+  --source chip_review
+
 chip finding resolve <finding-id> "Corrigé inline — <description de la correction>"
 ```
 
-**Correction significative** (refactor, multi-fichiers, impact sur d'autres modules) : crée une tâche de type `fix`, puis :
+**Correction significative** (refactor, multi-fichiers, impact sur d'autres modules) : crée une tâche de type `fix`, émets l'event, puis résous :
 
 ```bash
 chip task add <feature-id> <phase-id> "Fix: <titre court>" "<description>" --type fix
+chip event add <feature-id> \
+  --kind correction \
+  --data '{"root_cause": "<cause racine>", "fix": "<ce que la tâche va corriger>", "files": []}' \
+  --finding <finding-id> \
+  --session <session-id> \
+  --source chip_review
 chip finding resolve <finding-id> "Tâche fix créée : task <task-id>" --task <task-id>
 ```
 
@@ -204,7 +259,25 @@ Attends la confirmation utilisateur avant toute modification. Applique ensuite l
 
 ## ÉTAPE 4 — CLÔTURE
 
-Vérifie l'état final des findings :
+**Relancer les tests après toutes les corrections :**
+
+```bash
+bun run test
+```
+
+Des tests cassés après corrections = finding `critical` automatique, bloque l'avancement de stage même si la review était propre avant les corrections :
+
+```bash
+chip finding add <feature-id> "[tests] Suite cassée post-correction — <N> failures: <liste des tests>" \
+  --pass technical \
+  --severity critical \
+  --session <session-id> \
+  --category "test"
+```
+
+Ne pas avancer le stage tant que ce finding est ouvert.
+
+**Vérifie l'état final des findings :**
 
 ```bash
 chip finding list <feature-id> --unresolved
@@ -219,7 +292,7 @@ chip finding list <feature-id> --unresolved
 Clore la session :
 
 ```bash
-chip session end <session-id> "Passe métier : <résumé>. Passe technique : <résumé>. <N> findings, <N> résolus, <N> en attente."
+chip session end <session-id> "Passe métier : <résumé>. Passe technique : <résumé>. Passe tests : verdict <SUFFICIENT|PARTIAL|MISSING>. <N> findings, <N> résolus, <N> en attente."
 ```
 
 Si aucun finding `critical` non résolu :
@@ -235,7 +308,7 @@ Si des findings `critical` restent ouverts : ne pas avancer le stage. Annonce le
 
 ## RÈGLES
 
-- Les deux passes s'effectuent dans le même run, séquentiellement. Ne t'arrête pas entre les deux.
+- Les trois passes s'effectuent dans le même run, séquentiellement. Ne t'arrête pas entre les passes.
 - Tout finding est tracé dans chip **avant** d'être traité — jamais après.
 - Findings `critical` bloquent l'avancement de stage.
 - Inclure `[file:line]` dans chaque description de finding pour référence précise.

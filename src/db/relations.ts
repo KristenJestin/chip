@@ -8,6 +8,7 @@ export const relations = defineRelations(schema, (r) => ({
     sessions: r.many.sessions(),
     findings: r.many.findings(),
     criteria: r.many.criteria(),
+    events: r.many.events(),
   },
   phases: {
     feature: r.one.features({
@@ -71,6 +72,16 @@ export const relations = defineRelations(schema, (r) => ({
     feature: r.one.features({
       from: r.criteria.featureId,
       to: r.features.id,
+    }),
+  },
+  events: {
+    feature: r.one.features({
+      from: r.events.featureId,
+      to: r.features.id,
+    }),
+    session: r.one.sessions({
+      from: r.events.sessionId,
+      to: r.sessions.id,
     }),
   },
 }));
