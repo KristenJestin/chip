@@ -206,6 +206,16 @@ bun run test:coverage   # coverage report
 - All tests must pass before committing.
 - **When a bug is found and fixed, always add a regression test that explicitly documents the incorrect value or behavior, with a comment explaining what was wrong.** The test must fail on the broken code and pass on the fix. This prevents the same bug from silently reappearing.
 
+## Language
+
+**Everything must be in English — no exceptions:**
+- All code: variable names, function names, type names, enum values
+- All comments in source files
+- All `console.log` / `die()` messages and CLI output strings
+- All error messages thrown by core services
+- All test descriptions (`describe`, `it`, `test`)
+- All commit messages
+
 ## Code style
 
 - TypeScript strict mode — no `any`, no `// @ts-ignore`
