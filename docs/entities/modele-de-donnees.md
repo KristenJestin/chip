@@ -65,11 +65,32 @@ Unités de travail atomiques au sein d'une phase.
 | `started_at` | `integer` | nullable | — |
 | `completed_at` | `integer` | nullable | — |
 
-**Valeurs `status` :** `"todo"` | `"in-progress"` | `"review"` | `"done"`
+**Valeurs `status` :** `"todo"` | `"in-progress"` | `"done"`
+
+> **Note :** le statut `"review"` a été **supprimé des tâches** (migration `20260414163000`). Les tâches existantes portant ce statut ont été migrées vers `"done"`. Les phases conservent leur propre statut `"review"`.
 
 **Valeurs `type` :** `"feature"` | `"fix"` | `"docs"` | `"test"`
 
 > **Note :** `parent_task_id` permet de hiérarchiser les tâches (sous-tâches). Cette relation n'est pas déclarée dans Drizzle Relations — elle est gérée manuellement.
+
+---
+
+### `task_dependencies`
+
+Dépendances de blocage entre tâches : une tâche ne peut passer à `"in-progress"` ou `"done"` tant que ses bloqueurs ne sont pas à l'état `"done"`.
+
+| Colonne | Type SQLite | Contraintes | Défaut |
+|---|---|---|---|
+| `id` | `integer` | PRIMARY KEY AUTOINCREMENT | — |
+| `task_id` | `integer` | NOT NULL, FK → `tasks.id` ON DELETE CASCADE | — |
+| `blocks_task_id` | `integer` | NOT NULL, FK → `tasks.id` ON DELETE CASCADE | — |
+| `created_at` | `integer` | NOT NULL (Unix secondes) | — |
+
+**Index unique :** `(task_id, blocks_task_id)` — une paire bloqué/bloqueur ne peut exister qu'une fois.
+
+**Lecture :** `task_id` est la tâche **bloquée**, `blocks_task_id` est la tâche **bloquante** (celle qui doit être terminée en premier).
+
+> Les deux FK sont déclarées avec `ON DELETE CASCADE` : supprimer une tâche supprime automatiquement toutes les dépendances où elle apparaît.
 
 ---
 
@@ -156,31 +177,72 @@ Critères d'acceptation associés à une feature, optionnellement scopés à une
 
 ---
 
+### `events`
+
+Événements typés et structurés associés à une feature. Chaque événement porte un payload JSON validé par un schéma Zod spécifique à son `kind`.
+
+| Colonne | Type SQLite | Contraintes | Défaut |
+|---|---|---|---|
+| `id` | `integer` | PRIMARY KEY AUTOINCREMENT | — |
+| `feature_id` | `text` | NOT NULL, FK → `features.id` | — |
+| `kind` | `text` | NOT NULL, enum | — |
+| `data` | `text` | NOT NULL (JSON stringifié, validé par kind) | — |
+| `phase_id` | `integer` | nullable | — |
+| `task_id` | `integer` | nullable | — |
+| `finding_id` | `integer` | nullable | — |
+| `session_id` | `integer` | nullable, FK → `sessions.id` | — |
+| `source` | `text` | nullable (ex. : `chip_dev_subagent`) | — |
+| `created_at` | `integer` | NOT NULL (Unix secondes) | — |
+
+**Valeurs `kind` :** `"task_result"` | `"correction"` | `"decision"` | `"phase_summary"`
+
+Schéma du payload par `kind` :
+
+| `kind` | Champs du payload |
+|---|---|
+| `task_result` | `files: { created, modified, deleted }`, `decisions: string[]`, `issues: string[]`, `test_result: { passed, count }` |
+| `correction` | `root_cause: string`, `fix: string`, `files: string[]` |
+| `decision` | `context: string`, `options: string[]` (min 1), `chosen: string`, `rationale: string` |
+| `phase_summary` | `delivered: string[]` (min 1), `coverage_verdict: "SUFFICIENT"\|"PARTIAL"\|"MISSING"`, `risks: string[]` |
+
+> `data` est stocké comme chaîne JSON. La validation du payload est effectuée **avant l'insertion** par `addEvent()` via `EVENT_DATA_SCHEMAS[kind].safeParse(data)`. Le plugin retourne le champ désérialisé.
+
+---
+
 ## Relations Drizzle
 
 Définies via `defineRelations` (API v2, Drizzle ORM v1 beta) dans `src/db/relations.ts`.
 
 ```
-features  ──< phases     (one-to-many, via phases.feature_id)
-features  ──< logs       (one-to-many, via logs.feature_id)
-features  ──< sessions   (one-to-many, via sessions.feature_id)
-features  ──< findings   (one-to-many, via findings.feature_id)
-features  ──< criteria   (one-to-many, via criteria.feature_id)
+features  ──< phases            (one-to-many, via phases.feature_id)
+features  ──< logs              (one-to-many, via logs.feature_id)
+features  ──< sessions          (one-to-many, via sessions.feature_id)
+features  ──< findings          (one-to-many, via findings.feature_id)
+features  ──< criteria          (one-to-many, via criteria.feature_id)
+features  ──< events            (one-to-many, via events.feature_id)
 
-phases    >── features   (many-to-one)
-phases    ──< tasks      (one-to-many, via tasks.phase_id)
+phases    >── features          (many-to-one)
+phases    ──< tasks             (one-to-many, via tasks.phase_id)
 
-tasks     >── phases     (many-to-one)
+tasks     >── phases            (many-to-one)
+tasks     ──< taskDependencies  (blockedByDeps : dépendances où cette tâche est bloquée)
+tasks     ──< taskDependencies  (blocksDeps    : dépendances où cette tâche est le bloqueur)
 
-logs      >── features   (many-to-one)
+taskDependencies >── tasks      (blockedTask  : tâche bloquée, via task_dependencies.task_id)
+taskDependencies >── tasks      (blockerTask  : tâche bloquante, via task_dependencies.blocks_task_id)
 
-sessions  >── features   (many-to-one)
-sessions  ──< findings   (one-to-many, via findings.session_id)
+logs      >── features          (many-to-one)
 
-findings  >── features   (many-to-one)
-findings  >── sessions   (many-to-one)
+sessions  >── features          (many-to-one)
+sessions  ──< findings          (one-to-many, via findings.session_id)
 
-criteria  >── features   (many-to-one)
+findings  >── features          (many-to-one)
+findings  >── sessions          (many-to-one)
+
+criteria  >── features          (many-to-one)
+
+events    >── features          (many-to-one)
+events    >── sessions          (many-to-one, optionnel, via events.session_id)
 ```
 
 **Relations non déclarées dans Drizzle (gérées manuellement) :**
@@ -195,13 +257,15 @@ Définis dans `src/db/types.ts`.
 
 ```typescript
 // Types scalaires inférés du schéma Drizzle
-type Feature   = typeof features.$inferSelect;
-type Phase     = typeof phases.$inferSelect;
-type Task      = typeof tasks.$inferSelect;
-type Log       = typeof logs.$inferSelect;
-type Session   = typeof sessions.$inferSelect;
-type Finding   = typeof findings.$inferSelect;
-type Criterion = typeof criteria.$inferSelect;
+type Feature        = typeof features.$inferSelect;
+type Phase          = typeof phases.$inferSelect;
+type Task           = typeof tasks.$inferSelect;
+type Log            = typeof logs.$inferSelect;
+type Session        = typeof sessions.$inferSelect;
+type Finding        = typeof findings.$inferSelect;
+type Criterion      = typeof criteria.$inferSelect;
+type TaskDependency = typeof taskDependencies.$inferSelect;
+type Event          = typeof events.$inferSelect;
 
 // Types composites utilisés par les services
 type PhaseWithTasks      = Phase & { tasks: Task[] };
@@ -212,8 +276,18 @@ type FeatureDetails      = {
   findings:   Finding[];
   criteria:   Criterion[];
 };
-type FeatureWithSessions = Feature & { sessions: Session[] };
-type TaskWithParent      = Task & { parentTask?: Task | null };
+type FeatureWithSessions  = Feature & { sessions: Session[] };
+type TaskWithParent       = Task & { parentTask?: Task | null };
+type TaskWithDependencies = Task & {
+  blockedByDeps: Array<TaskDependency & { blockerTask: Task }>;
+  blocksDeps:    Array<TaskDependency & { blockedTask: Task }>;
+};
+
+/**
+ * Tâche en attente enrichie avec la liste des tâches qui la bloquent activement
+ * (bloqueurs dont le statut n'est pas encore "done"). Utilisé par NextDiagnostic.
+ */
+type PendingTaskDiagnostic = Task & { blockedBy: Task[] };
 ```
 
 ---
@@ -238,6 +312,11 @@ Fonctions de garde et de calcul d'ordre utilisées par les services core.
 assertFeatureExists(db, featureId: string): Promise<void>
 // Lance Error("Feature not found: <id>") si la feature est absente.
 
+assertFeatureInPlanning(db, featureId: string): Promise<void>
+// Lance Error si la feature est absente OU si son stage n'est pas "planning".
+// Utilisé par addTaskDependency / removeTaskDependency pour restreindre
+// les modifications de dépendances au stage de planification.
+
 assertPhaseExists(db, phaseId: number, featureId: string): Promise<void>
 // Lance Error si la phase est absente OU n'appartient pas à la feature.
 
@@ -258,7 +337,7 @@ nextTaskOrder(db, phaseId: number): Promise<number>
 - **Timestamps :** entiers Unix en secondes (`Math.floor(Date.now() / 1000)`), stockés en `integer` SQLite.
 - **Booléens :** `integer` SQLite (0 ou 1). Uniquement sur `criteria.satisfied`.
 - **IDs features :** slugs kebab-case, max 64 caractères, générés depuis le titre. En cas de collision, suffixe `-2`, `-3`, etc.
-- **IDs phases/tasks/logs/sessions/findings/criteria :** entiers autoincrémentés.
+- **IDs phases/tasks/logs/sessions/findings/criteria/taskDependencies/events :** entiers autoincrémentés.
 
 ---
 
@@ -269,5 +348,8 @@ nextTaskOrder(db, phaseId: number): Promise<number>
 | `20260413130137_puzzling_cannonball` | 2026-04-13 | Création initiale : `features`, `phases`, `tasks`, `logs` |
 | `20260414095646_thankful_thunderbolt` | 2026-04-14 | Ajout de `sessions`, colonne `stage` sur `features` (défaut `"planning"`) |
 | `20260414100337_even_whiplash` | 2026-04-14 | Ajout de `criteria`, `findings`, colonnes `type` et `parent_task_id` sur `tasks` |
+| `20260414163000_migrate_task_review_to_done` | 2026-04-14 | Migration des tâches `status = 'review'` vers `'done'` ; suppression de `"review"` de l'enum des tâches |
+| `20260414180853_curved_storm` | 2026-04-14 | Création de `task_dependencies` avec contrainte unique `(task_id, blocks_task_id)` et FK CASCADE |
+| `20260414221404_nebulous_shadowcat` | 2026-04-14 | Création de `events` avec FK sur `features.id` et `sessions.id` |
 
 Les migrations sont stockées dans `drizzle/` et copiées dans `dist/migrations/` au moment du build.

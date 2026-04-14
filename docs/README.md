@@ -15,8 +15,8 @@
 |---|---|
 | [metier/features.md](metier/features.md) | Cycle de vie d'une feature : statuts, pipeline de stages, règles de transition (régression, passage à `review`), création et génération de slug, invariants |
 | [metier/sessions-findings-criteres.md](metier/sessions-findings-criteres.md) | Règles des sessions (types, résolution, sessions actives simultanées), findings (classification, résolution irréversible, lien tâche fix), critères d'acceptation (satisfaction irréversible, `verified_by`) |
-| [metier/commandes-cli.md](metier/commandes-cli.md) | Référence complète de toutes les commandes CLI : syntaxe, options, comportement (`chip init`, `feature`, `phase`, `task`, `log`, `session`, `finding`, `criteria`, `next`, `batch`, `summary`) |
-| [metier/plugin-opencode.md](metier/plugin-opencode.md) | Les 24 outils du plugin OpenCode, paramètres et retours, différences avec la CLI, structures `SummaryData` et `NextDiagnostic`, templates installés par `chip init` |
+| [metier/commandes-cli.md](metier/commandes-cli.md) | Référence complète de toutes les commandes CLI : syntaxe, options, comportement (`chip init`, `feature`, `phase`, `task`, `log`, `session`, `finding`, `criteria`, `next`, `batch`, `summary`, `event`) |
+| [metier/plugin-opencode.md](metier/plugin-opencode.md) | Les 26 outils du plugin OpenCode, paramètres et retours, différences avec la CLI, structures `SummaryData` et `NextDiagnostic`, templates installés par `chip init` |
 
 ## Flux
 
@@ -28,4 +28,4 @@
 
 ---
 
-Dernière mise à jour : 2026-04-14
+Dernière mise à jour : 2026-04-15
