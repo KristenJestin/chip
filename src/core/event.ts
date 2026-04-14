@@ -96,6 +96,6 @@ export async function listEvents(
         filters?.sessionId !== undefined ? eq(events.sessionId, filters.sessionId) : undefined,
       ),
     )
-    .orderBy(asc(events.createdAt))
+    .orderBy(asc(events.createdAt), asc(events.id))
     .all();
 }

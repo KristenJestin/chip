@@ -6,7 +6,7 @@
 
 | Fichier | Contenu |
 |---|---|
-| [entities/modele-de-donnees.md](entities/modele-de-donnees.md) | Schéma complet des 8 tables SQLite (`features`, `phases`, `tasks`, `task_dependencies`, `logs`, `sessions`, `findings`, `criteria`, `events`), colonnes, types, contraintes, relations Drizzle, types TypeScript composites, helpers DB, migrations |
+| [entities/modele-de-donnees.md](entities/modele-de-donnees.md) | Schéma complet des 9 tables SQLite (`features`, `phases`, `tasks`, `task_dependencies`, `logs`, `sessions`, `findings`, `criteria`, `events`), colonnes, types, contraintes, relations Drizzle, types TypeScript composites, helpers DB, migrations |
 | [entities/schemas-validation.md](entities/schemas-validation.md) | Schémas Zod v4 par domaine (feature, phase, tâche, dépendance, log, session, finding, critère, événement, agent), primitives partagées (`phaseStatus` et `taskStatus` désormais distincts), règle d'import critique |
 
 ## Métier

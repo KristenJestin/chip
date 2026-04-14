@@ -125,7 +125,8 @@ export function registerEventCommands(program: Command): void {
           // Pretty-print the JSON data
           try {
             const parsed = JSON.parse(entry.data);
-            console.log(`  ${JSON.stringify(parsed)}`);
+            const pretty = JSON.stringify(parsed, null, 2);
+            console.log(`  ${pretty.replace(/\n/g, "\n  ")}`);
           } catch {
             console.log(`  ${entry.data}`);
           }
