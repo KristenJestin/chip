@@ -22,10 +22,9 @@ export function registerDependencyCommands(program: Command): void {
     .command("add")
     .description("Block a task until another task is done")
     .argument("<feature-id>", "Feature ID")
-    .argument("<phase-id>", "Phase ID of the blocked task (numeric)")
     .argument("<task-id>", "ID of the task to block (numeric)")
     .argument("<blocking-task-id>", "ID of the task that must finish first (numeric)")
-    .action(async (featureId, _phaseIdStr, taskIdStr, blockingTaskIdStr) => {
+    .action(async (featureId, taskIdStr, blockingTaskIdStr) => {
       const db = await getDb();
       const taskId = parseInt(taskIdStr, 10);
       if (isNaN(taskId)) die(`Identifiant de tâche invalide : ${taskIdStr}`);
@@ -45,10 +44,9 @@ export function registerDependencyCommands(program: Command): void {
     .command("remove")
     .description("Remove a blocking dependency between two tasks")
     .argument("<feature-id>", "Feature ID")
-    .argument("<phase-id>", "Phase ID of the blocked task (numeric)")
     .argument("<task-id>", "ID of the blocked task (numeric)")
     .argument("<blocking-task-id>", "ID of the blocking task to remove (numeric)")
-    .action(async (featureId, _phaseIdStr, taskIdStr, blockingTaskIdStr) => {
+    .action(async (featureId, taskIdStr, blockingTaskIdStr) => {
       const db = await getDb();
       const taskId = parseInt(taskIdStr, 10);
       if (isNaN(taskId)) die(`Identifiant de tâche invalide : ${taskIdStr}`);
@@ -68,9 +66,8 @@ export function registerDependencyCommands(program: Command): void {
     .command("list")
     .description("List blocking dependencies for a task")
     .argument("<feature-id>", "Feature ID")
-    .argument("<phase-id>", "Phase ID of the task (numeric)")
     .argument("<task-id>", "Task ID (numeric)")
-    .action(async (featureId, _phaseIdStr, taskIdStr) => {
+    .action(async (featureId, taskIdStr) => {
       const db = await getDb();
       const taskId = parseInt(taskIdStr, 10);
       if (isNaN(taskId)) die(`Identifiant de tâche invalide : ${taskIdStr}`);

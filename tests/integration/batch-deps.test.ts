@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createTestDb } from "../helpers/db";
 import { createFeature } from "../../src/core/feature";
+import { updateFeatureStage } from "../../src/core/feature";
 import { executeBatch } from "../../src/core/batch";
 import { listTaskDependencies } from "../../src/core/dependency";
 
@@ -218,5 +219,41 @@ describe("executeBatch — ref/blockedBy dependencies", () => {
     // Nothing should have been inserted
     const dbPhases = await db.query.phases.findMany({ where: { featureId: id } });
     expect(dbPhases).toHaveLength(0);
+  });
+
+  it("rolls back phases and tasks when dep insertion fails mid-batch (transaction atomicity)", async () => {
+    // Regression test: before wrapping executeBatch in a transaction, a failure at the
+    // dep-insertion step (after phases and tasks were already inserted) would leave the
+    // DB in a partial state with orphaned phases/tasks.
+    //
+    // Trigger: addTaskDependency calls assertFeatureInPlanning, which throws when the
+    // feature is not in planning stage. Since executeBatch only calls assertFeatureExists
+    // (not assertFeatureInPlanning) for its phase/task inserts, advancing the feature to
+    // development before the batch means phases and tasks get inserted successfully, but
+    // the dep step throws — exercising the mid-batch rollback path.
+    const db = await createTestDb();
+    const id = await createFeature(db, "Atomic Feature");
+    // Advance to development so that assertFeatureInPlanning inside addTaskDependency throws
+    await updateFeatureStage(db, id, "development");
+
+    await expect(
+      executeBatch(db, id, {
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "Task A", ref: "a" },
+              { title: "Task B", ref: "b", blockedBy: ["a"] },
+            ],
+          },
+        ],
+      }),
+    ).rejects.toThrow();
+
+    // The transaction must have been rolled back — no phases or tasks should remain
+    const dbPhases = await db.query.phases.findMany({ where: { featureId: id } });
+    expect(dbPhases).toHaveLength(0);
+    const dbTasks = await db.query.tasks.findMany({});
+    expect(dbTasks).toHaveLength(0);
   });
 });

@@ -227,7 +227,7 @@ describe("taskTools", () => {
     expect(result.status).toBe("in-progress");
   });
 
-  it("chip_task_status with force+reason overrides a blocked task", async () => {
+  it("chip_task_status throws when task is blocked and tells the agent to ask the user", async () => {
     const db = await createTestDb();
     await featureTools(db).chip_feature_create.execute({ title: "Force Feature" }, ctx);
     const pt = phaseTools(db);
@@ -252,28 +252,13 @@ describe("taskTools", () => {
         ctx,
       ),
     ) as { id: number };
-    // Should fail without force
+    // Must fail with a message directing the agent to ask the user
     await expect(
       tt.chip_task_status.execute(
         { featureId: "force-feature", phaseId: phase2.id, taskId: task2.id, status: "in-progress" },
         ctx,
       ),
-    ).rejects.toThrow();
-    // Should succeed with force+reason
-    const result = parse(
-      await tt.chip_task_status.execute(
-        {
-          featureId: "force-feature",
-          phaseId: phase2.id,
-          taskId: task2.id,
-          status: "in-progress",
-          force: true,
-          reason: "Unblocking for parallel work",
-        },
-        ctx,
-      ),
-    ) as { status: string };
-    expect(result.status).toBe("in-progress");
+    ).rejects.toThrow(/ask the user how to proceed/i);
   });
 });
 
@@ -437,6 +422,50 @@ describe("agentTools", () => {
     ) as { nextAction: string; stage: string };
     expect(typeof result.nextAction).toBe("string");
     expect(result.stage).toBe("planning");
+  });
+
+  it("chip_next annotates blocked pending tasks with their blocker names", async () => {
+    const db = await createTestDb();
+    await featureTools(db).chip_feature_create.execute({ title: "Blocking Feature" }, ctx);
+    const phase = parse(
+      await phaseTools(db).chip_phase_add.execute(
+        { featureId: "blocking-feature", title: "Phase 1" },
+        ctx,
+      ),
+    ) as { id: number };
+    const tt = taskTools(db);
+    const taskA = parse(
+      await tt.chip_task_add.execute(
+        { featureId: "blocking-feature", phaseId: phase.id, title: "Task A" },
+        ctx,
+      ),
+    ) as { id: number };
+    const taskB = parse(
+      await tt.chip_task_add.execute(
+        { featureId: "blocking-feature", phaseId: phase.id, title: "Task B" },
+        ctx,
+      ),
+    ) as { id: number };
+    // B is blocked by A
+    await dependencyTools(db).chip_task_dep_add.execute(
+      { featureId: "blocking-feature", taskId: taskB.id, blockingTaskId: taskA.id },
+      ctx,
+    );
+
+    const result = parse(
+      await agentTools(db).chip_next.execute({ featureId: "blocking-feature" }, ctx),
+    ) as { pendingTasks: Array<{ id: number; title: string; blockedBy: Array<{ id: number; title: string }> }> };
+
+    const pendingA = result.pendingTasks.find((t) => t.id === taskA.id);
+    const pendingB = result.pendingTasks.find((t) => t.id === taskB.id);
+    expect(pendingA).toBeDefined();
+    expect(pendingA!.blockedBy).toHaveLength(0);
+
+    // Task B must report Task A as its active blocker
+    expect(pendingB).toBeDefined();
+    expect(pendingB!.blockedBy).toHaveLength(1);
+    expect(pendingB!.blockedBy[0].id).toBe(taskA.id);
+    expect(pendingB!.blockedBy[0].title).toBe("Task A");
   });
 
   it("chip_batch creates phases and tasks in bulk", async () => {

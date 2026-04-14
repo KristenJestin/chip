@@ -70,6 +70,24 @@ export async function updateTaskStatus(
   phaseId: number,
   taskId: number,
   status: PhaseTaskStatus,
+  // `force` and `reason` are intentionally NOT exposed via the CLI or the
+  // OpenCode plugin. The rationale:
+  //
+  //   - Allowing an agent to bypass blocking dependencies with a flag creates
+  //     a silent escape hatch: an agent that keeps hitting blocked tasks can
+  //     trivially --force its way through, defeating the entire dependency
+  //     system without any human awareness.
+  //
+  //   - The correct flow when a task is blocked is to surface the blocker to
+  //     the user and ask how to proceed (resolve the dependency, reorder work,
+  //     or explicitly decide to skip it). Forcing should be a conscious human
+  //     decision, not an automated one.
+  //
+  //   - The `force` path is kept here at the core level so the logic is
+  //     preserved and can be re-exposed (with proper guardrails — e.g. a
+  //     dedicated human-only CLI flag, an audit log, or an approval flow) if
+  //     the need arises. Deleting it now would mean re-implementing it later
+  //     without the context of why it existed.
   options?: { force?: boolean; reason?: string },
 ): Promise<Task> {
   validate(UpdateTaskStatusInput, { featureId, phaseId, taskId, status });
@@ -90,7 +108,7 @@ export async function updateTaskStatus(
           ...phaseCheck.incompleteTasks.map((t) => `task ${t.id} "${t.title}" (phase ordering)`),
         ];
         throw new Error(
-          `Task ${taskId} is blocked by: ${blockerNames.join(", ")}. Use force with a reason to override.`,
+          `Task ${taskId} is blocked by: ${blockerNames.join(", ")}. Resolve blocking tasks first, or ask the user how to proceed.`,
         );
       }
 

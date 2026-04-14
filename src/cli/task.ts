@@ -73,9 +73,7 @@ export function registerTaskCommands(program: Command): void {
     .argument("<phase-id>", "Phase ID (numeric)")
     .argument("<task-id>", "Task ID (numeric)")
     .argument("<status>", `New status (${VALID_TASK_STATUSES.join("|")})`)
-    .option("--force", "Forcer la transition même si la tâche est bloquée")
-    .option("--reason <text>", "Raison du forçage (obligatoire avec --force)")
-    .action(async (featureId, phaseIdStr, taskIdStr, statusStr, options) => {
+    .action(async (featureId, phaseIdStr, taskIdStr, statusStr) => {
       const db = await getDb();
       const phaseId = parseInt(phaseIdStr, 10);
       if (isNaN(phaseId)) die(`Identifiant de phase invalide : ${phaseIdStr}`);
@@ -87,10 +85,6 @@ export function registerTaskCommands(program: Command): void {
         );
       }
 
-      if (options.force && !options.reason) {
-        die("--reason <texte> est obligatoire lorsque --force est utilisé");
-      }
-
       try {
         const task = await updateTaskStatus(
           db,
@@ -98,9 +92,8 @@ export function registerTaskCommands(program: Command): void {
           phaseId,
           taskId,
           statusStr as PhaseTaskStatus,
-          { force: options.force, reason: options.reason },
         );
-        console.log(`Task ${task.id} status → ${task.status}`);
+        console.log(`Tâche ${task.id} : statut → ${task.status}`);
       } catch (err) {
         die(errMsg(err));
       }

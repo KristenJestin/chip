@@ -191,7 +191,7 @@ describe("task status --force / --reason (CLI guards)", () => {
 
     await expect(
       updateTaskStatus(db, featureId, phase1.id, taskB.id, "in-progress"),
-    ).rejects.toThrow(`Task ${taskB.id} is blocked by:`);
+    ).rejects.toThrow(/ask the user how to proceed/i);
   });
 
   it("--force without --reason → error at core", async () => {

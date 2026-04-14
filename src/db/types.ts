@@ -31,3 +31,11 @@ export type TaskWithDependencies = Task & {
   blockedByDeps: Array<TaskDependency & { blockerTask: Task }>;
   blocksDeps: Array<TaskDependency & { blockedTask: Task }>;
 };
+
+/**
+ * A pending task enriched with the list of tasks that are actively blocking it
+ * (i.e. blockers that are not yet done). Used by NextDiagnostic.
+ */
+export type PendingTaskDiagnostic = Task & {
+  blockedBy: Task[];
+};

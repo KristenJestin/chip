@@ -2,7 +2,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { type Db } from "../db/client";
 import { type Task, type TaskDependency } from "../db/types";
 import { tasks, taskDependencies } from "../db/schema";
-import { assertFeatureExists } from "../db/helpers";
+import { assertFeatureExists, assertFeatureInPlanning } from "../db/helpers";
 import { nowUnix } from "../utils/time";
 import { validate } from "./validate";
 import { AddTaskDependencyInput, RemoveTaskDependencyInput } from "./schemas";
@@ -38,10 +38,11 @@ export async function detectCycle(
   newBlockingTaskId: number,
 ): Promise<boolean> {
   const visited = new Set<number>();
-  const queue: number[] = [newBlockingTaskId];
+  // DFS stack: starts at the proposed blocker and traverses its own blockers
+  const stack: number[] = [newBlockingTaskId];
 
-  while (queue.length > 0) {
-    const current = queue.pop()!;
+  while (stack.length > 0) {
+    const current = stack.pop()!;
     if (current === newBlockedTaskId) return true;
     if (visited.has(current)) continue;
     visited.add(current);
@@ -51,7 +52,7 @@ export async function detectCycle(
       where: { taskId: current },
     });
     for (const dep of deps) {
-      queue.push(dep.blocksTaskId);
+      stack.push(dep.blocksTaskId);
     }
   }
 
@@ -67,7 +68,7 @@ export async function addTaskDependency(
   blockingTaskId: number,
 ): Promise<TaskDependency> {
   validate(AddTaskDependencyInput, { featureId, taskId, blockingTaskId });
-  await assertFeatureExists(db, featureId);
+  await assertFeatureInPlanning(db, featureId);
   await assertTaskBelongsToFeature(db, taskId, featureId);
   await assertTaskBelongsToFeature(db, blockingTaskId, featureId);
 
@@ -107,7 +108,7 @@ export async function removeTaskDependency(
   blockingTaskId: number,
 ): Promise<void> {
   validate(RemoveTaskDependencyInput, { featureId, taskId, blockingTaskId });
-  await assertFeatureExists(db, featureId);
+  await assertFeatureInPlanning(db, featureId);
 
   const existing = await db.query.taskDependencies.findFirst({
     where: { taskId, blocksTaskId: blockingTaskId },

@@ -8,6 +8,7 @@ import { addCriterion, checkCriterion } from "../../src/core/criterion";
 import { startSession } from "../../src/core/session";
 import { updateFeatureStage } from "../../src/core/feature";
 import { getNext } from "../../src/core/next";
+import { addTaskDependency } from "../../src/core/dependency";
 
 describe("getNext — validation", () => {
   it("throws when featureId is empty", async () => {
@@ -133,5 +134,61 @@ describe("getNext — active session takes priority", () => {
     const diag = await getNext(db, id);
     expect(diag.activeSession).not.toBeNull();
     expect(diag.nextAction).toContain("Continue session");
+  });
+});
+
+describe("getNext — blocked task annotation", () => {
+  it("annotates a pending task with its active blockers", async () => {
+    const db = await createTestDb();
+    const id = await createFeature(db, "Blocked Feature");
+    const phase = await addPhase(db, id, "Phase 1");
+    const taskA = await addTask(db, id, phase.id, "Task A");
+    const taskB = await addTask(db, id, phase.id, "Task B");
+    // B is blocked by A
+    await addTaskDependency(db, id, taskB.id, taskA.id);
+
+    const diag = await getNext(db, id);
+
+    const pendingA = diag.pendingTasks.find((t) => t.id === taskA.id);
+    const pendingB = diag.pendingTasks.find((t) => t.id === taskB.id);
+    expect(pendingA).toBeDefined();
+    expect(pendingA!.blockedBy).toHaveLength(0); // A has no blockers
+
+    // B is blocked by A (A is not done)
+    expect(pendingB).toBeDefined();
+    expect(pendingB!.blockedBy).toHaveLength(1);
+    expect(pendingB!.blockedBy[0].id).toBe(taskA.id);
+    expect(pendingB!.blockedBy[0].title).toBe("Task A");
+  });
+
+  it("does not list a blocker once it is done", async () => {
+    const db = await createTestDb();
+    const id = await createFeature(db, "Completed Blocker");
+    const phase = await addPhase(db, id, "Phase 1");
+    const taskA = await addTask(db, id, phase.id, "Task A");
+    const taskB = await addTask(db, id, phase.id, "Task B");
+    await addTaskDependency(db, id, taskB.id, taskA.id);
+    // Complete task A (the blocker) — stage guard allows this
+    await updateFeatureStage(db, id, "development");
+    await updateTaskStatus(db, id, phase.id, taskA.id, "done");
+    // Re-check (feature is now in development)
+    const diag = await getNext(db, id);
+
+    // Task A is done — no longer pending, Task B should have empty blockedBy
+    const pendingB = diag.pendingTasks.find((t) => t.id === taskB.id);
+    expect(pendingB).toBeDefined();
+    // A is done, so it must NOT appear as an active blocker
+    expect(pendingB!.blockedBy).toHaveLength(0);
+  });
+
+  it("returns empty blockedBy array for tasks with no dependencies", async () => {
+    const db = await createTestDb();
+    const id = await createFeature(db, "No Deps");
+    const phase = await addPhase(db, id, "Phase 1");
+    await addTask(db, id, phase.id, "Task A");
+
+    const diag = await getNext(db, id);
+    expect(diag.pendingTasks).toHaveLength(1);
+    expect(diag.pendingTasks[0].blockedBy).toEqual([]);
   });
 });

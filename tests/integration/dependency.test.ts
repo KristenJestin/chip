@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createTestDb } from "../helpers/db";
-import { createFeature } from "../../src/core/feature";
+import { createFeature, updateFeatureStage } from "../../src/core/feature";
 import { addPhase } from "../../src/core/phase";
 import { addTask, updateTaskStatus } from "../../src/core/task";
 import {
@@ -85,6 +85,17 @@ describe("addTaskDependency", () => {
       addTaskDependency(db, featureId, taskB.id, taskA.id),
     ).rejects.toThrow(`Dependency already exists: task ${taskB.id} is already blocked by task ${taskA.id}`);
   });
+
+  // Regression: addTaskDependency must enforce the planning stage restriction.
+  // Before this fix the stage was never checked, allowing dep mutations in development.
+  it("throws when feature is not in planning stage", async () => {
+    const { db, featureId, taskA, taskB } = await setup();
+    await updateFeatureStage(db, featureId, "development");
+
+    await expect(
+      addTaskDependency(db, featureId, taskB.id, taskA.id),
+    ).rejects.toThrow(`not in planning stage`);
+  });
 });
 
 // ── detectCycle ───────────────────────────────────────────────────────────────
@@ -163,6 +174,20 @@ describe("removeTaskDependency", () => {
     await expect(
       removeTaskDependency(db, "nonexistent", taskB.id, taskA.id),
     ).rejects.toThrow("Feature not found: nonexistent");
+  });
+
+  // Regression: removeTaskDependency must enforce the planning stage restriction.
+  // Before this fix the stage was never checked, allowing dep removal in development/review.
+  it("throws when feature is not in planning stage", async () => {
+    const { db, featureId, taskA, taskB } = await setup();
+    // Add the dep first (while still in planning)
+    await addTaskDependency(db, featureId, taskB.id, taskA.id);
+    // Advance to development
+    await updateFeatureStage(db, featureId, "development");
+
+    await expect(
+      removeTaskDependency(db, featureId, taskB.id, taskA.id),
+    ).rejects.toThrow(`not in planning stage`);
   });
 });
 
