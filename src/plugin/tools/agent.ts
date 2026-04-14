@@ -7,7 +7,7 @@ export function agentTools(db: Db): Record<string, ToolDefinition> {
   return {
     chip_next: tool({
       description:
-        "Get the next suggested action for a feature — aggregates stage, pending tasks, unresolved findings, and unsatisfied criteria into a structured diagnostic",
+        "Get the next suggested action for a feature — aggregates stage, pending tasks (including those blocked by unfinished dependencies), unresolved findings, and unsatisfied criteria into a structured diagnostic",
       args: {
         featureId: tool.schema.string().min(1),
       },

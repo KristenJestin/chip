@@ -10,6 +10,7 @@ import { logTools } from "./tools/log";
 import { findingTools } from "./tools/finding";
 import { criteriaTools } from "./tools/criteria";
 import { agentTools } from "./tools/agent";
+import { dependencyTools } from "./tools/dependency";
 
 const _dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -29,6 +30,7 @@ export const plugin: PluginModule = {
         ...findingTools(db),
         ...criteriaTools(db),
         ...agentTools(db),
+        ...dependencyTools(db),
       },
     };
   },
