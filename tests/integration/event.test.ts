@@ -264,6 +264,30 @@ describe("listEvents", () => {
     expect(result[0]!.id).toBe(e1.id);
   });
 
+  it("filters by sessionId", async () => {
+    const db = await createTestDb();
+    const featureId = await createFeature(db, "My Feature");
+    const session1 = await startSession(db, featureId, "dev");
+    const session2 = await startSession(db, featureId, "review");
+
+    const taskData = {
+      files: { created: [], modified: [], deleted: [] },
+      decisions: [],
+      issues: [],
+      test_result: { passed: true, count: 0 },
+    };
+
+    const e1 = await addEvent(db, featureId, "task_result", taskData, { sessionId: session1.id });
+    await addEvent(db, featureId, "task_result", taskData, { sessionId: session2.id });
+    // event with no session — must not appear
+    await addEvent(db, featureId, "task_result", taskData);
+
+    const result = await listEvents(db, featureId, { sessionId: session1.id });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe(e1.id);
+    expect(result[0]!.sessionId).toBe(session1.id);
+  });
+
   it("returns only events for the given feature", async () => {
     const db = await createTestDb();
     const id1 = await createFeature(db, "Feature 1");

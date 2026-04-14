@@ -31,7 +31,7 @@ export function registerEventCommands(program: Command): void {
         );
         return;
       }
-      const kind = kindResult.data as EventKind;
+      const kind = kindResult.data;
 
       // Parse JSON data
       let data: unknown;
@@ -89,7 +89,7 @@ export function registerEventCommands(program: Command): void {
           die(`Invalid kind "${options.kind}". Must be one of: ${eventKind.options.join(", ")}`);
           return;
         }
-        kind = kindResult.data as EventKind;
+        kind = kindResult.data;
       }
 
       const taskId = options.task !== undefined ? parseInt(options.task, 10) : undefined;
@@ -121,7 +121,7 @@ export function registerEventCommands(program: Command): void {
           const finding = entry.findingId !== null ? ` [finding ${entry.findingId}]` : "";
           const session = entry.sessionId !== null ? ` [session ${entry.sessionId}]` : "";
           const src = entry.source ? `  ${entry.source}` : "";
-          console.log(`${ts}  [${entry.kind}]${phase}${task}${finding}${session}${src}`);
+          console.log(`[${entry.id}] ${ts}  [${entry.kind}]${phase}${task}${finding}${session}${src}`);
           // Pretty-print the JSON data
           try {
             const parsed = JSON.parse(entry.data);

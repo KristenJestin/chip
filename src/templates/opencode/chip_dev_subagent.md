@@ -23,7 +23,7 @@ You are a focused implementation sub-agent. You execute **one task** and return 
 
 ## WHAT YOU CAN DO
 
-You are allowed to call only these chip commands:
+You are allowed to call only these chip commands (`chip log`, `chip finding`, `chip event`):
 
 ```bash
 chip log add <feature-id> "<message>" --phase <phase-id> --task <task-id> --source chip_dev_subagent
@@ -147,6 +147,9 @@ Your final message to the orchestrator must be a JSON block:
   }
 }
 ```
+
+> **Note:** `task_id` and `status` are present in this chat-message format only — they are **not** stored in the `task_result` event (which contains `files`, `decisions`, `issues`, `test_result`).
+> The orchestrator infers success from the event as: `issues` empty **and** `test_result.passed` is `true`.
 
 Do not include narrative prose in the final message — only the JSON block. The orchestrator parses this to update chip state.
 

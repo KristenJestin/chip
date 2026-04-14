@@ -122,6 +122,9 @@ En cas de doute sur le résultat, ou pour vérifier l'historique, consulte l'eve
 chip event list <feature-id> --kind task_result --task <task-id>
 ```
 
+> **Note:** the stored event does not have a `status` field — infer it from the data:
+> success = `issues` is empty **and** `test_result.passed` is `true`; failure otherwise.
+
 **d. Traiter chaque résultat**
 
 Pour chaque résultat :
