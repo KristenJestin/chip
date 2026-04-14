@@ -115,6 +115,9 @@ Les retours sont tous en JSON stringifié, sauf `chip_feature_export` qui retour
 | `chip_next` | `featureId: string` | — | `NextDiagnostic` |
 | `chip_batch` | `featureId: string`, `payload: { phases: [...] }` | — | `BatchResult` |
 
+> `chip_batch` supporte les champs `ref` (clé de référence unique dans le batch) et `blockedBy` (liste de `ref`) sur chaque tâche pour créer des dépendances intra-batch. Voir [metier/commandes-cli.md](commandes-cli.md) pour le format complet.  
+> `BatchResult` contient désormais `{ phasesCreated, tasksCreated, depsCreated }`.
+
 ### Événement
 
 | Outil | Paramètres obligatoires | Paramètres optionnels | Retour |
@@ -165,11 +168,14 @@ Retourné par `chip_next` :
   feature: Feature,
   stage: string,
   activeSession: Session | null,
-  pendingTasks: Task[],             // statut "todo" ou "in-progress"
-  unresolvedFindings: Finding[],    // resolution === null
-  unsatisfiedCriteria: Criterion[], // satisfied === false
-  nextAction: string                // message actionnable
+  pendingTasks: PendingTaskDiagnostic[], // statut "todo" ou "in-progress", enrichi des bloqueurs actifs
+  unresolvedFindings: Finding[],         // resolution === null
+  unsatisfiedCriteria: Criterion[],      // satisfied === false
+  nextAction: string                     // message actionnable
 }
+
+// PendingTaskDiagnostic = Task & { blockedBy: Task[] }
+// blockedBy : bloqueurs dont le statut n'est pas encore "done"
 ```
 
 ---
