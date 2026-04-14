@@ -18,11 +18,14 @@
   feature: Feature,
   stage: string,
   activeSession: Session | null,
-  pendingTasks: Task[],             // status "todo" ou "in-progress"
-  unresolvedFindings: Finding[],    // resolution === null
-  unsatisfiedCriteria: Criterion[], // satisfied === false
-  nextAction: string                // message actionnable
+  pendingTasks: PendingTaskDiagnostic[], // statut "todo" ou "in-progress", enrichi des bloqueurs actifs
+  unresolvedFindings: Finding[],         // resolution === null
+  unsatisfiedCriteria: Criterion[],      // satisfied === false
+  nextAction: string                     // message actionnable
 }
+
+// PendingTaskDiagnostic = Task & { blockedBy: Task[] }
+// blockedBy : liste des tâches bloquantes dont le statut n'est pas encore "done"
 ```
 
 ---
@@ -48,6 +51,12 @@ sequenceDiagram
     Core->>DB: SELECT sessions WHERE feature_id="auth-module" AND status="active"
     DB-->>Core: sessions actives
 
+    Note right of Core: Filtre les tâches "todo" ou "in-progress"
+    Core->>DB: SELECT task_dependencies WHERE task_id IN (pending task ids)
+    DB-->>Core: dépendances des tâches en attente
+
+    Note right of Core: Enrichit chaque tâche avec blockedBy (bloqueurs non done)
+
     Core->>DB: SELECT findings WHERE feature_id="auth-module" AND resolution IS NULL
     DB-->>Core: findings non résolus
 
@@ -55,7 +64,7 @@ sequenceDiagram
     DB-->>Core: critères non satisfaits
 
     Note right of Core: Calcul de nextAction selon le stage
-    Core-->>CLI: NextDiagnostic
+    Core-->>CLI: NextDiagnostic (pendingTasks avec blockedBy)
     CLI-->>Agent: Affichage formaté
 ```
 
@@ -137,3 +146,4 @@ flowchart TD
 - Il n'émet pas de commande ni ne modifie aucune donnée — c'est une lecture seule.
 - Il ne vérifie pas la cohérence entre le stage et l'état réel des tâches (ex. : tâches non terminées en stage `review`). Il se contente de signaler les éléments en attente.
 - Il retourne toujours exactement un `nextAction`, même si plusieurs actions sont nécessaires (seule la plus urgente est retournée).
+- Il n'affiche pas les dépendances dans `nextAction` — les bloqueurs sont exposés dans chaque élément de `pendingTasks.blockedBy`, à charge de l'agent de les interpréter.

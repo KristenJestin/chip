@@ -109,6 +109,23 @@ export const criteria = sqliteTable("criteria", {
   createdAt: integer("created_at").notNull(),
 });
 
+export const events = sqliteTable("events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  featureId: text("feature_id")
+    .notNull()
+    .references(() => features.id),
+  kind: text("kind", {
+    enum: ["task_result", "correction", "decision", "phase_summary"],
+  }).notNull(),
+  data: text("data").notNull(), // JSON payload validated by kind-specific Zod schema
+  phaseId: integer("phase_id"),
+  taskId: integer("task_id"),
+  findingId: integer("finding_id"),
+  sessionId: integer("session_id").references(() => sessions.id),
+  source: text("source"),
+  createdAt: integer("created_at").notNull(),
+});
+
 export const taskDependencies = sqliteTable(
   "task_dependencies",
   {

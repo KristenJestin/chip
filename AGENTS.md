@@ -2,7 +2,7 @@
 
 ## What is chip?
 
-`chip` is a CLI tool designed to be called by AI coding agents. It provides structured persistence for managing software **features**, **phases**, **tasks**, **sessions**, **findings**, and **criteria** — replacing fragile markdown file editing with explicit, typed commands backed by SQLite.
+`chip` is a CLI tool designed to be called by AI coding agents. It provides structured persistence for managing software **features**, **phases**, **tasks**, **sessions**, **findings**, **criteria**, and **events** — replacing fragile markdown file editing with explicit, typed commands backed by SQLite.
 
 When working on a project that uses chip, prefer `chip` commands over editing files manually to track progress.
 
@@ -89,6 +89,9 @@ chip next <feature-id>                               — actionable diagnostic f
 chip batch <feature-id> --json <file>                — create phases+tasks from a JSON file
 chip summary <feature-id>                            — stats dashboard
 
+chip event add <feature-id> --kind <kind> --data <json> [--phase <id>] [--task <id>] [--finding <id>] [--session <id>] [--source <src>]
+chip event list <feature-id> [--kind <kind>] [--task <id>] [--finding <id>] [--session <id>]
+
 chip init [--provider <provider>] [--no-commands]    — initialize .chip/ and install provider command files
 ```
 
@@ -130,6 +133,7 @@ src/
     next.ts             — registerNextCommands
     batch.ts            — registerBatchCommands
     summary.ts          — registerSummaryCommands
+    event.ts            — registerEventCommands
   plugin/               — OpenCode plugin (imports from core/, returns JSON)
     index.ts            — PluginModule export
     tools/
@@ -141,6 +145,7 @@ src/
       finding.ts        — chip_finding_* tools
       criteria.ts       — chip_criteria_* tools
       agent.ts          — chip_next, chip_batch tools
+      event.ts          — chip_event_* tools
   db/
     schema.ts           — Drizzle table definitions
     relations.ts        — defineRelations for relational queries
@@ -171,8 +176,9 @@ tests/
 | `sessions` | `id` (autoincrement) | `featureId` (FK), `type` (`prd`\|`dev`\|`review`\|`docs`), `status` (`active`\|`completed`\|`aborted`), optional `phaseId`, `summary`, `createdAt`, `completedAt` |
 | `findings` | `id` (autoincrement) | `featureId` (FK), `sessionId` (FK), `pass` (`business`\|`technical`), `severity`, `category`, `description`, optional `taskId`, `resolution`, `createdAt` |
 | `criteria` | `id` (autoincrement) | `featureId` (FK), optional `phaseId`, `description`, `satisfied` (0/1), `satisfiedAt`, `verifiedBy`, `createdAt`                 |
+| `events`   | `id` (autoincrement) | `featureId` (FK), `kind` (`task_result`\|`correction`\|`decision`\|`phase_summary`), `data` (JSON text), optional `phaseId`/`taskId`/`findingId`/`sessionId` (FK), `source`, `createdAt` |
 
-Relations: `features` → many `phases` → many `tasks`; `features` → many `logs`, `sessions`, `findings`, `criteria`; `sessions` → many `findings`; `findings` → optional `tasks` (fix task); `tasks` → optional parent `tasks`.
+Relations: `features` → many `phases` → many `tasks`; `features` → many `logs`, `sessions`, `findings`, `criteria`, `events`; `sessions` → many `findings`; `findings` → optional `tasks` (fix task); `tasks` → optional parent `tasks`.
 
 ## Drizzle ORM — critical syntax rules
 
@@ -194,7 +200,7 @@ db.query.features.findMany({ orderBy: asc(features.createdAt) });
 ## Testing
 
 ```bash
-bun run test            # run all tests (19 files, 287 tests)
+bun run test            # run all tests (25 files, 402 tests)
 bun run test:watch      # watch mode
 bun run test:coverage   # coverage report
 ```
