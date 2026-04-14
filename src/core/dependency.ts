@@ -41,18 +41,28 @@ export async function detectCycle(
   // DFS stack: starts at the proposed blocker and traverses its own blockers
   const stack: number[] = [newBlockingTaskId];
 
+  // Load dependency edges once to avoid issuing a query for each visited task.
+  const allDeps = await db.query.taskDependencies.findMany();
+  const blockersByTaskId = new Map<number, number[]>();
+  for (const dep of allDeps) {
+    const blockers = blockersByTaskId.get(dep.taskId);
+    if (blockers) {
+      blockers.push(dep.blocksTaskId);
+    } else {
+      blockersByTaskId.set(dep.taskId, [dep.blocksTaskId]);
+    }
+  }
+
   while (stack.length > 0) {
     const current = stack.pop()!;
     if (current === newBlockedTaskId) return true;
     if (visited.has(current)) continue;
     visited.add(current);
 
-    // Find all tasks that `current` is blocked by (i.e. current's blockers)
-    const deps = await db.query.taskDependencies.findMany({
-      where: { taskId: current },
-    });
-    for (const dep of deps) {
-      stack.push(dep.blocksTaskId);
+    // Traverse the already-loaded blockers for `current`.
+    const blockers = blockersByTaskId.get(current) ?? [];
+    for (const blockerTaskId of blockers) {
+      stack.push(blockerTaskId);
     }
   }
 
