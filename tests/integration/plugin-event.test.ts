@@ -54,7 +54,6 @@ describe("chip_event_add", () => {
       tools.chip_event_add.execute(
         {
           featureId,
-          // @ts-expect-error intentional invalid kind
           kind: "invalid_kind",
           data: {},
         },
