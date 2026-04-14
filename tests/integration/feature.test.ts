@@ -5,10 +5,39 @@ import {
   listFeatures,
   getFeatureDetails,
   exportFeature,
-} from "../../src/commands/feature";
-import { addPhase } from "../../src/commands/phase";
-import { addTask } from "../../src/commands/task";
-import { addLog } from "../../src/commands/log";
+} from "../../src/core/feature";
+import { addPhase } from "../../src/core/phase";
+import { addTask } from "../../src/core/task";
+import { addLog } from "../../src/core/log";
+import { addFinding } from "../../src/core/finding";
+import { addCriterion } from "../../src/core/criterion";
+
+describe("createFeature — validation", () => {
+  it("throws when title is empty", async () => {
+    const db = await createTestDb();
+    await expect(createFeature(db, "")).rejects.toThrow();
+  });
+
+  it("throws when title is not a string", async () => {
+    const db = await createTestDb();
+    // @ts-expect-error intentional invalid input
+    await expect(createFeature(db, 123)).rejects.toThrow();
+  });
+});
+
+describe("getFeatureDetails — validation", () => {
+  it("throws when featureId is empty", async () => {
+    const db = await createTestDb();
+    await expect(getFeatureDetails(db, "")).rejects.toThrow();
+  });
+});
+
+describe("exportFeature — validation", () => {
+  it("throws when featureId is empty", async () => {
+    const db = await createTestDb();
+    await expect(exportFeature(db, "")).rejects.toThrow();
+  });
+});
 
 describe("createFeature", () => {
   it("inserts a feature and returns its slug ID", async () => {
@@ -113,6 +142,25 @@ describe("getFeatureDetails", () => {
     expect(details.feature.id).toBe(id);
     expect(details.phases).toHaveLength(0);
     expect(details.recentLogs).toHaveLength(0);
+    expect(details.findings).toHaveLength(0);
+    expect(details.criteria).toHaveLength(0);
+  });
+
+  it("returns findings and criteria when they exist", async () => {
+    // Arrange
+    const db = await createTestDb();
+    const id = await createFeature(db, "Rich Feature");
+    await addFinding(db, id, "Some issue", { pass: "technical", severity: "major" });
+    await addCriterion(db, id, "Must handle errors gracefully");
+
+    // Act
+    const details = await getFeatureDetails(db, id);
+
+    // Assert
+    expect(details.findings).toHaveLength(1);
+    expect(details.findings[0].description).toBe("Some issue");
+    expect(details.criteria).toHaveLength(1);
+    expect(details.criteria[0].description).toBe("Must handle errors gracefully");
   });
 });
 
@@ -140,6 +188,7 @@ describe("exportFeature", () => {
     expect(md).toContain(`**ID:** ${id}`);
     expect(md).toContain("**Description:** A great feature");
     expect(md).toContain("**Status:** active");
+    expect(md).toContain("**Stage:** planning");
   });
 
   it("includes phases and tasks with their statuses", async () => {
@@ -207,5 +256,68 @@ describe("exportFeature", () => {
     expect(md).toContain("# Empty Feature");
     expect(md).not.toContain("## Phases");
     expect(md).not.toContain("## Logs");
+  });
+
+  it("includes task type tag for non-feature tasks", async () => {
+    // Arrange
+    const db = await createTestDb();
+    const id = await createFeature(db, "Typed Tasks");
+    const phase = await addPhase(db, id, "Phase 1");
+    await addTask(db, id, phase.id, "A fix task", undefined, { type: "fix" });
+
+    // Act
+    const md = await exportFeature(db, id);
+
+    // Assert
+    expect(md).toContain("[fix]");
+  });
+
+  it("does not include type tag for default feature tasks", async () => {
+    // Arrange
+    const db = await createTestDb();
+    const id = await createFeature(db, "Default Tasks");
+    const phase = await addPhase(db, id, "Phase 1");
+    await addTask(db, id, phase.id, "Normal task");
+
+    // Act
+    const md = await exportFeature(db, id);
+
+    // Assert
+    expect(md).not.toContain("[feature]");
+  });
+
+  it("includes criteria section in export", async () => {
+    // Arrange
+    const db = await createTestDb();
+    const id = await createFeature(db, "With Criteria");
+    await addCriterion(db, id, "Must pass all tests");
+
+    // Act
+    const md = await exportFeature(db, id);
+
+    // Assert
+    expect(md).toContain("## Acceptance Criteria");
+    expect(md).toContain("Must pass all tests");
+    expect(md).toContain("- [ ] Must pass all tests");
+  });
+
+  it("includes findings section in export", async () => {
+    // Arrange
+    const db = await createTestDb();
+    const id = await createFeature(db, "With Findings");
+    await addFinding(db, id, "Security hole found", {
+      pass: "technical",
+      severity: "critical",
+      category: "security",
+    });
+
+    // Act
+    const md = await exportFeature(db, id);
+
+    // Assert
+    expect(md).toContain("## Findings");
+    expect(md).toContain("Security hole found");
+    expect(md).toContain("[critical]");
+    expect(md).toContain("[unresolved]");
   });
 });

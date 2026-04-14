@@ -2,7 +2,7 @@
 
 ## What is chip?
 
-`chip` is a CLI tool designed to be called by AI coding agents. It provides structured persistence for managing software **features**, **phases**, and **tasks** — replacing fragile markdown file editing with explicit, typed commands backed by SQLite.
+`chip` is a CLI tool designed to be called by AI coding agents. It provides structured persistence for managing software **features**, **phases**, **tasks**, **sessions**, **findings**, and **criteria** — replacing fragile markdown file editing with explicit, typed commands backed by SQLite.
 
 When working on a project that uses chip, prefer `chip` commands over editing files manually to track progress.
 
@@ -12,7 +12,9 @@ When working on a project that uses chip, prefer `chip` commands over editing fi
 - **Language:** TypeScript (strict)
 - **CLI framework:** Commander.js (`@commander-js/extra-typings`)
 - **Database:** SQLite via `@libsql/client` + Drizzle ORM v1 beta
-- **Bundler:** tsup (CJS output, `#!/usr/bin/env node` shebang)
+- **Validation:** Zod v4 — **CRITICAL import syntax:** `import * as z from "zod"` (NOT `import { z } from "zod"` — causes `z = undefined` in Vitest)
+- **Bundler:** tsup — CJS for CLI (`dist/index.js`), ESM for plugin (`dist/plugin.mjs`)
+- **Plugin:** `@opencode-ai/plugin` (devDependency) — exposes chip operations as OpenCode tools
 - **Tests:** Vitest v4
 
 ## Dev environment
@@ -54,30 +56,96 @@ bunx drizzle-kit migrate    # applies it to .chip/chip.db
 ## CLI commands
 
 ```
-chip feature create <title> [description]   — create a feature (slug ID auto-generated)
-chip feature list                           — list all features
-chip feature status <feature-id>            — show phases, tasks, and recent logs
+chip feature create <title> [description]            — create a feature (slug ID auto-generated)
+chip feature list                                    — list all features
+chip feature status <feature-id>                     — show phases, tasks, findings, criteria, logs
+chip feature stage <feature-id> <stage> [--force]   — advance the workflow stage
+chip feature export <feature-id>                     — export feature details as JSON
+chip feature summary <feature-id>                    — compact dashboard
 
-chip phase add <feature-id> <title> [desc]  — add a phase to a feature
-chip task add <feature-id> <phase-id> <title> [desc]  — add a task to a phase
+chip phase add <feature-id> <title> [desc]           — add a phase to a feature
+chip phase status <feature-id> <phase-id> <status>   — update phase status
+
+chip task add <feature-id> <phase-id> <title> [desc] [--type <type>] [--parent <id>]
+chip task status <feature-id> <phase-id> <task-id> <status>
+
+chip log add <feature-id> <message> [--phase <id>] [--task <id>] [--source <src>]
+chip log list <feature-id> [--limit <n>]
+
+chip session start <feature-id> <type> [--phase <id>]
+chip session end [session-id] [summary]
+chip session list <feature-id> [--type <type>]
+chip session current [feature-id]
+
+chip finding add <feature-id> <description> --pass <pass> --severity <sev> [--category <cat>] [--session <id>]
+chip finding list <feature-id> [--unresolved] [--pass <pass>] [--severity <sev>]
+chip finding resolve <finding-id> <resolution> [--task <task-id>]
+
+chip criteria add <feature-id> <description> [--phase <id>]
+chip criteria check <criteria-id> [--source <source>]
+chip criteria list <feature-id> [--pending] [--phase <id>]
+
+chip next <feature-id>                               — actionable diagnostic for the agent
+chip batch <feature-id> --json <file>                — create phases+tasks from a JSON file
+chip summary <feature-id>                            — stats dashboard
+
+chip init [--provider <provider>] [--no-commands]    — initialize .chip/ and install provider command files
 ```
 
+Supported providers: `opencode` (installs command files to `.opencode/commands/`).
+`--no-commands` initializes the database only, without installing any command files.
+
 Feature IDs are kebab-case slugs derived from the title (e.g. "Auth Module" → `auth-module`, `auth-module-2` if taken).
+
+Workflow stages (in order): `planning` → `development` → `review` → `documentation` → `released`
 
 ## Code structure
 
 ```
 src/
-  index.ts              — CLI entry point, registers all commands
-  commands/
-    feature.ts          — feature services + Commander registration
-    phase.ts            — phase services + Commander registration
-    task.ts             — task services + Commander registration
+    core/                 — pure business logic (no Commander, no console.log, no die())
+    schemas.ts          — all Zod v4 input schemas
+    validate.ts         — validate<T>(schema, data): T wrapper
+    feature.ts          — createFeature, listFeatures, getFeatureDetails, exportFeature, updateFeatureStage
+    phase.ts            — addPhase, updatePhaseStatus
+    task.ts             — addTask, updateTaskStatus
+    log.ts              — addLog, listLogs
+    session.ts          — startSession, endSession, listSessions, getCurrentSession
+    finding.ts          — addFinding, listFindings, resolveFinding
+    criterion.ts        — addCriterion, checkCriterion, listCriteria
+    next.ts             — getNext (actionable diagnostic)
+    batch.ts            — executeBatch (bulk create phases+tasks)
+    summary.ts          — getSummary (stats dashboard)
+    init-project.ts     — installProviderCommands (copies bundled templates to provider target dir)
+  cli/                  — Commander.js wiring only (import from core/, call die(), console.log)
+    index.ts            — CLI entry point, registers all commands
+    init.ts             — registerInitCommands
+    feature.ts          — registerFeatureCommands
+    phase.ts            — registerPhaseCommands
+    task.ts             — registerTaskCommands
+    log.ts              — registerLogCommands
+    session.ts          — registerSessionCommands
+    finding.ts          — registerFindingCommands
+    criterion.ts        — registerCriteriaCommands
+    next.ts             — registerNextCommands
+    batch.ts            — registerBatchCommands
+    summary.ts          — registerSummaryCommands
+  plugin/               — OpenCode plugin (imports from core/, returns JSON)
+    index.ts            — PluginModule export
+    tools/
+      feature.ts        — chip_feature_* tools
+      session.ts        — chip_session_* tools
+      phase.ts          — chip_phase_* tools
+      task.ts           — chip_task_* tools
+      log.ts            — chip_log_* tools
+      finding.ts        — chip_finding_* tools
+      criteria.ts       — chip_criteria_* tools
+      agent.ts          — chip_next, chip_batch tools
   db/
-    schema.ts           — Drizzle table definitions (features, phases, tasks, logs)
+    schema.ts           — Drizzle table definitions
     relations.ts        — defineRelations for relational queries
-    client.ts           — DB connection factory (makeDb, openDb, getDb singleton)
-    types.ts            — inferred TS types + composite types (FeatureDetails, PhaseWithTasks)
+    client.ts           — makeDb, openDb, getDb singleton, openDbForProject
+    types.ts            — inferred TS types + composite types
     helpers.ts          — guard functions + auto-increment order helpers
   utils/
     init.ts             — ensureInit(), getDbPath(), .gitignore management
@@ -87,20 +155,24 @@ src/
     time.ts             — nowUnix()
 tests/
   helpers/db.ts         — createTestDb() — isolated temp-file DB per test
-  unit/                 — die, format, slug unit tests
-  integration/          — client, init, feature, phase, task integration tests
+  unit/                 — schemas, die, format, slug unit tests
+  integration/          — client, init, feature, phase, task, log, stage, session,
+                          finding, criterion, next, batch, summary, plugin integration tests
 ```
 
 ## Database schema
 
-| Table      | Primary key          | Notable columns                                                                                                    |
-| ---------- | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `features` | `id` (text slug)     | `title`, `description`, `status` (`active`\|`done`\|`archived`), `createdAt`, `updatedAt`                          |
-| `phases`   | `id` (autoincrement) | `featureId` (FK), `order`, `title`, `status` (`todo`\|`in-progress`\|`review`\|`done`), `startedAt`, `completedAt` |
-| `tasks`    | `id` (autoincrement) | `phaseId` (FK), `order`, `title`, `status` (same as phases), `startedAt`, `completedAt`                            |
-| `logs`     | `id` (autoincrement) | `featureId` (FK), optional `phaseId`/`taskId`, `source`, `message`, `createdAt`                                    |
+| Table      | Primary key          | Notable columns                                                                                                                   |
+| ---------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `features` | `id` (text slug)     | `title`, `description`, `status` (`active`\|`done`\|`archived`), `stage` (`planning`\|`development`\|`review`\|`documentation`\|`released`), `createdAt`, `updatedAt` |
+| `phases`   | `id` (autoincrement) | `featureId` (FK), `order`, `title`, `status` (`todo`\|`in-progress`\|`review`\|`done`), `startedAt`, `completedAt`               |
+| `tasks`    | `id` (autoincrement) | `phaseId` (FK), `order`, `title`, `type` (`feature`\|`fix`\|`docs`\|`test`), `parentTaskId` (FK, optional), `status`, `startedAt`, `completedAt` |
+| `logs`     | `id` (autoincrement) | `featureId` (FK), optional `phaseId`/`taskId`, `source`, `message`, `createdAt`                                                  |
+| `sessions` | `id` (autoincrement) | `featureId` (FK), `type` (`prd`\|`dev`\|`review`\|`docs`), `status` (`active`\|`completed`\|`aborted`), optional `phaseId`, `summary`, `createdAt`, `completedAt` |
+| `findings` | `id` (autoincrement) | `featureId` (FK), `sessionId` (FK), `pass` (`business`\|`technical`), `severity`, `category`, `description`, optional `taskId`, `resolution`, `createdAt` |
+| `criteria` | `id` (autoincrement) | `featureId` (FK), optional `phaseId`, `description`, `satisfied` (0/1), `satisfiedAt`, `verifiedBy`, `createdAt`                 |
 
-Relations: `features` → many `phases` → many `tasks`; `features` → many `logs`.
+Relations: `features` → many `phases` → many `tasks`; `features` → many `logs`, `sessions`, `findings`, `criteria`; `sessions` → many `findings`; `findings` → optional `tasks` (fix task); `tasks` → optional parent `tasks`.
 
 ## Drizzle ORM — critical syntax rules
 
@@ -122,7 +194,7 @@ db.query.features.findMany({ orderBy: asc(features.createdAt) });
 ## Testing
 
 ```bash
-bun run test            # run all tests (8 files, 53 tests)
+bun run test            # run all tests (19 files, 287 tests)
 bun run test:watch      # watch mode
 bun run test:coverage   # coverage report
 ```
@@ -137,14 +209,18 @@ bun run test:coverage   # coverage report
 
 - TypeScript strict mode — no `any`, no `// @ts-ignore`
 - Single responsibility per file
-- Service functions (the actual logic) are exported separately from Commander registration functions, enabling direct testing without CLI overhead
+- `src/core/` services: pure logic, no Commander, no `die()`, no `console.log` — throw `Error` with descriptive messages
+- `src/cli/` handlers: parse args, call core services, catch errors → `die()`, `console.log` output
+- `src/plugin/` tools: call core services, return structured JSON
 - Prefer `db.query.*` (relational API) for reads; use SQL-builder API for writes and aggregations
-- Error handling: throw `Error` with descriptive messages in services; catch and call `die()` in Commander action handlers
-- No `console.log` in service functions — only in CLI action handlers
+- Zod v4 import: always `import * as z from "zod"` (namespace import)
 
-## Current roadmap
+## Current roadmap (chip v2 — all phases complete)
 
-- **Phase 1** (complete): core data model, feature/phase/task creation, feature status display
-- **Phase 2** (next): status update commands (`feature done`, `phase start/done`, `task start/done`), log commands (`log add`, `log list`)
-- **Phase 3**: README, packaging, agent integration file (`.opencode/commands/chip.md`)
-- **Phase 4**: export commands, search, archive
+- **Phase 1** (complete): Zod v4 validation on all existing commands
+- **Phase 2** (complete): workflow stage pipeline + session tracking
+- **Phase 3** (complete): task types, findings, acceptance criteria
+- **Phase 4** (complete): agent commands (`next`, `batch`, `summary`)
+- **Phase 5** (complete): OpenCode plugin (`@opencode-ai/plugin`)
+- **Phase 6** (complete): core/cli/plugin architecture refactoring
+- **Phase 7** (complete): `chip init` command with multi-provider support + OpenCode command templates

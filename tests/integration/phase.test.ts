@@ -1,7 +1,48 @@
 import { describe, it, expect } from "vitest";
 import { createTestDb } from "../helpers/db";
-import { createFeature } from "../../src/commands/feature";
-import { addPhase, updatePhaseStatus } from "../../src/commands/phase";
+import { createFeature } from "../../src/core/feature";
+import { addPhase, updatePhaseStatus } from "../../src/core/phase";
+
+describe("addPhase — validation", () => {
+  it("throws when featureId is empty", async () => {
+    const db = await createTestDb();
+    await expect(addPhase(db, "", "Phase 1")).rejects.toThrow();
+  });
+
+  it("throws when title is empty", async () => {
+    const db = await createTestDb();
+    await expect(addPhase(db, "some-feature", "")).rejects.toThrow();
+  });
+
+  it("throws when featureId is not a string", async () => {
+    const db = await createTestDb();
+    // @ts-expect-error intentional invalid input
+    await expect(addPhase(db, 42, "Phase 1")).rejects.toThrow();
+  });
+});
+
+describe("updatePhaseStatus — validation", () => {
+  it("throws when featureId is empty", async () => {
+    const db = await createTestDb();
+    await expect(updatePhaseStatus(db, "", 1, "done")).rejects.toThrow();
+  });
+
+  it("throws when phaseId is not a positive integer", async () => {
+    const db = await createTestDb();
+    await expect(updatePhaseStatus(db, "some-feature", 0, "done")).rejects.toThrow();
+  });
+
+  it("throws when phaseId is negative", async () => {
+    const db = await createTestDb();
+    await expect(updatePhaseStatus(db, "some-feature", -1, "done")).rejects.toThrow();
+  });
+
+  it("throws when status is invalid", async () => {
+    const db = await createTestDb();
+    // @ts-expect-error intentional invalid input
+    await expect(updatePhaseStatus(db, "some-feature", 1, "invalid-status")).rejects.toThrow();
+  });
+});
 
 describe("addPhase", () => {
   it("inserts a phase and returns it", async () => {

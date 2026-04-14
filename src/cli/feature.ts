@@ -1,142 +1,18 @@
 import { writeFile } from "fs/promises";
 import { Command } from "@commander-js/extra-typings";
-import { type Db, getDb } from "../db/client";
-import { features } from "../db/schema";
+import { getDb } from "../db/client";
 import { type FeatureDetails } from "../db/types";
-import { toSlug, uniqueSlug } from "../utils/slug";
 import { formatDate, formatDateTime, statusBadge, sep, pad } from "../utils/format";
 import { die, errMsg } from "../utils/die";
-import { nowUnix } from "../utils/time";
-
-const RECENT_LOGS_LIMIT = 10;
-
-// ── Services (exported for testing) ──────────────────────────────────────────
-
-export async function createFeature(db: Db, title: string, description?: string): Promise<string> {
-  const now = nowUnix();
-  const existing = await db.query.features.findMany({ columns: { id: true } });
-  const id = uniqueSlug(
-    toSlug(title),
-    existing.map((f) => f.id),
-  );
-  await db
-    .insert(features)
-    .values({
-      id,
-      title,
-      description: description ?? null,
-      status: "active",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
-  return id;
-}
-
-export async function listFeatures(db: Db) {
-  return db.query.features.findMany({ orderBy: { createdAt: "asc" } });
-}
-
-export async function getFeatureDetails(db: Db, featureId: string): Promise<FeatureDetails> {
-  const result = await db.query.features.findFirst({
-    where: { id: featureId },
-    with: {
-      phases: {
-        orderBy: { order: "asc" },
-        with: {
-          tasks: {
-            orderBy: { order: "asc" },
-          },
-        },
-      },
-      logs: {
-        orderBy: { createdAt: "desc" },
-        limit: RECENT_LOGS_LIMIT,
-      },
-    },
-  });
-
-  if (!result) throw new Error(`Feature not found: ${featureId}`);
-
-  const { phases: featurePhases, logs: recentLogs, ...feature } = result;
-  return { feature, phases: featurePhases, recentLogs };
-}
-
-export async function exportFeature(db: Db, featureId: string): Promise<string> {
-  const result = await db.query.features.findFirst({
-    where: { id: featureId },
-    with: {
-      phases: {
-        orderBy: { order: "asc" },
-        with: { tasks: { orderBy: { order: "asc" } } },
-      },
-      logs: { orderBy: { createdAt: "asc" } },
-    },
-  });
-
-  if (!result) throw new Error(`Feature not found: ${featureId}`);
-
-  const lines: string[] = [];
-
-  // ── Header ──────────────────────────────────────────────────────────────────
-  lines.push(`# ${result.title}`);
-  lines.push("");
-  lines.push(`**ID:** ${result.id}  `);
-  lines.push(`**Status:** ${result.status}  `);
-  if (result.description) lines.push(`**Description:** ${result.description}  `);
-  lines.push(`**Created:** ${formatDate(result.createdAt)}  `);
-  if (result.updatedAt !== result.createdAt) {
-    lines.push(`**Updated:** ${formatDate(result.updatedAt)}  `);
-  }
-  lines.push("");
-
-  // ── Phases ───────────────────────────────────────────────────────────────────
-  if (result.phases.length > 0) {
-    lines.push("## Phases");
-    lines.push("");
-    for (const phase of result.phases) {
-      lines.push(`### ${phase.order}. ${phase.title} \`[${phase.status}]\``);
-      lines.push("");
-      if (phase.description) {
-        lines.push(phase.description);
-        lines.push("");
-      }
-      if (phase.startedAt != null) lines.push(`**Started:** ${formatDate(phase.startedAt)}  `);
-      if (phase.completedAt != null)
-        lines.push(`**Completed:** ${formatDate(phase.completedAt)}  `);
-      if (phase.startedAt != null || phase.completedAt != null) lines.push("");
-
-      if (phase.tasks.length > 0) {
-        for (const task of phase.tasks) {
-          const check = task.status === "done" ? "x" : " ";
-          const desc = task.description ? ` — ${task.description}` : "";
-          lines.push(`- [${check}] **${task.title}** \`[${task.status}]\`${desc}`);
-        }
-        lines.push("");
-      }
-    }
-  }
-
-  // ── Logs ─────────────────────────────────────────────────────────────────────
-  if (result.logs.length > 0) {
-    lines.push("## Logs");
-    lines.push("");
-    for (const log of result.logs) {
-      const ctx = [
-        log.phaseId != null ? `phase ${log.phaseId}` : null,
-        log.taskId != null ? `task ${log.taskId}` : null,
-        log.source ?? null,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      const ctxStr = ctx ? ` _(${ctx})_` : "";
-      lines.push(`- \`${formatDateTime(log.createdAt)}\`${ctxStr} ${log.message}`);
-    }
-    lines.push("");
-  }
-
-  return lines.join("\n");
-}
+import {
+  STAGE_ORDER,
+  type FeatureStage,
+  createFeature,
+  listFeatures,
+  getFeatureDetails,
+  exportFeature,
+  updateFeatureStage,
+} from "../core/feature";
 
 // ── Commander registration ────────────────────────────────────────────────────
 
@@ -196,13 +72,14 @@ export function registerFeatureCommands(program: Command): void {
         die(errMsg(err));
       }
 
-      const { feature, phases: featurePhases, recentLogs } = details;
+      const { feature, phases: featurePhases, recentLogs, findings, criteria } = details;
 
       // ── header ──────────────────────────────────────────────────────────────
       console.log(`feature: ${feature.id}`);
       console.log(sep());
       console.log(`title:   ${feature.title}`);
       console.log(`status:  ${feature.status}`);
+      console.log(`stage:   ${feature.stage}`);
       if (feature.description) {
         console.log(`desc:    ${feature.description}`);
       }
@@ -232,12 +109,40 @@ export function registerFeatureCommands(program: Command): void {
           } else {
             console.log("        tasks:");
             for (const task of phase.tasks) {
-              console.log(`          ${task.order}.  ${statusBadge(task.status)}  ${task.title}`);
+              const typeTag = task.type !== "feature" ? ` [${task.type}]` : "";
+              console.log(
+                `          ${task.order}.  ${statusBadge(task.status)}  ${task.title}${typeTag}`,
+              );
               if (task.description) console.log(`                ${task.description}`);
             }
           }
           console.log("");
         }
+      }
+
+      // ── criteria ─────────────────────────────────────────────────────────────
+      if (criteria.length > 0) {
+        const satisfiedCount = criteria.filter((c) => c.satisfied).length;
+        console.log(`criteria (${satisfiedCount}/${criteria.length} satisfied)`);
+        console.log(sep());
+        for (const c of criteria) {
+          const check = c.satisfied ? "x" : " ";
+          console.log(`  [${check}] ${c.description}`);
+        }
+        console.log("");
+      }
+
+      // ── findings ─────────────────────────────────────────────────────────────
+      if (findings.length > 0) {
+        const unresolvedCount = findings.filter((f) => f.resolution == null).length;
+        console.log(`findings (${findings.length} — ${unresolvedCount} unresolved)`);
+        console.log(sep());
+        for (const f of findings) {
+          const status = f.resolution ? `resolved:${f.resolution}` : "unresolved";
+          const category = f.category ? ` · ${f.category}` : "";
+          console.log(`  [${f.severity}] [${f.pass}${category}]  ${f.description}  (${status})`);
+        }
+        console.log("");
       }
 
       // ── logs ─────────────────────────────────────────────────────────────────
@@ -270,6 +175,36 @@ export function registerFeatureCommands(program: Command): void {
         } else {
           process.stdout.write(markdown);
         }
+      } catch (err) {
+        die(errMsg(err));
+      }
+    });
+
+  // ── feature stage ─────────────────────────────────────────────────────────
+  featureCmd
+    .command("stage")
+    .description("Update the pipeline stage of a feature")
+    .argument("<feature-id>", "Feature ID")
+    .argument(
+      "<stage>",
+      "New stage (planning|development|review|documentation|released)",
+    )
+    .option("--force", "Allow backwards transitions and skip task checks")
+    .action(async (featureId, stage, options) => {
+      const db = await getDb();
+      if (!(STAGE_ORDER as readonly string[]).includes(stage)) {
+        die(
+          `Invalid stage: ${stage}. Must be one of: ${STAGE_ORDER.join(", ")}`,
+        );
+      }
+      try {
+        const feature = await updateFeatureStage(
+          db,
+          featureId,
+          stage as FeatureStage,
+          options.force ?? false,
+        );
+        console.log(`Feature ${feature.id} stage → ${feature.stage}`);
       } catch (err) {
         die(errMsg(err));
       }

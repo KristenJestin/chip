@@ -1,9 +1,43 @@
 import { describe, it, expect } from "vitest";
 import { createTestDb } from "../helpers/db";
-import { createFeature } from "../../src/commands/feature";
-import { addPhase } from "../../src/commands/phase";
-import { addTask } from "../../src/commands/task";
-import { addLog, listLogs } from "../../src/commands/log";
+import { createFeature } from "../../src/core/feature";
+import { addPhase } from "../../src/core/phase";
+import { addTask } from "../../src/core/task";
+import { addLog, listLogs } from "../../src/core/log";
+
+describe("addLog — validation", () => {
+  it("throws when featureId is empty", async () => {
+    const db = await createTestDb();
+    await expect(addLog(db, "", "Some message")).rejects.toThrow();
+  });
+
+  it("throws when message is empty", async () => {
+    const db = await createTestDb();
+    await expect(addLog(db, "some-feature", "")).rejects.toThrow();
+  });
+
+  it("throws when phaseId is not a positive integer", async () => {
+    const db = await createTestDb();
+    await expect(addLog(db, "some-feature", "msg", { phaseId: 0 })).rejects.toThrow();
+  });
+
+  it("throws when taskId is negative", async () => {
+    const db = await createTestDb();
+    await expect(addLog(db, "some-feature", "msg", { taskId: -1 })).rejects.toThrow();
+  });
+});
+
+describe("listLogs — validation", () => {
+  it("throws when featureId is empty", async () => {
+    const db = await createTestDb();
+    await expect(listLogs(db, "")).rejects.toThrow();
+  });
+
+  it("throws when phaseId filter is not positive", async () => {
+    const db = await createTestDb();
+    await expect(listLogs(db, "some-feature", { phaseId: 0 })).rejects.toThrow();
+  });
+});
 
 describe("addLog", () => {
   it("inserts a log and returns it", async () => {

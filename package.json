@@ -12,15 +12,19 @@
     "dist"
   ],
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./plugin": "./dist/plugin.mjs"
+  },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "tsup && rm -rf dist/migrations && cp -r drizzle dist/migrations",
-    "build:win": "tsup && rm -rf dist/migrations && cp -R drizzle dist/migrations",
+    "build": "tsup && rm -rf dist/migrations && cp -r drizzle dist/migrations && cp -r src/templates dist/templates",
+    "build:win": "tsup && rm -rf dist/migrations && cp -R drizzle dist/migrations && cp -R src/templates dist/templates",
     "install:local": "bun run build && bun link",
     "install:local:win": "bun run build:win && bun link @krinest/chip",
-    "chip": "bun src/index.ts --",
+    "chip": "bun src/cli/index.ts --",
     "db:studio": "drizzle-kit studio",
     "dev": "tsup --watch",
     "fmt": "oxfmt .",
@@ -41,6 +45,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@opencode-ai/plugin": "^1.4.3",
     "@types/node": "^25.6.0",
     "drizzle-kit": "^1.0.0-beta.21",
     "oxfmt": "^0.45.0",

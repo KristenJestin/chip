@@ -1,8 +1,53 @@
 import { describe, it, expect } from "vitest";
 import { createTestDb } from "../helpers/db";
-import { createFeature } from "../../src/commands/feature";
-import { addPhase } from "../../src/commands/phase";
-import { addTask, updateTaskStatus } from "../../src/commands/task";
+import { createFeature } from "../../src/core/feature";
+import { addPhase } from "../../src/core/phase";
+import { addTask, updateTaskStatus } from "../../src/core/task";
+
+describe("addTask — validation", () => {
+  it("throws when featureId is empty", async () => {
+    const db = await createTestDb();
+    await expect(addTask(db, "", 1, "Task A")).rejects.toThrow();
+  });
+
+  it("throws when phaseId is not a positive integer", async () => {
+    const db = await createTestDb();
+    await expect(addTask(db, "some-feature", 0, "Task A")).rejects.toThrow();
+  });
+
+  it("throws when phaseId is negative", async () => {
+    const db = await createTestDb();
+    await expect(addTask(db, "some-feature", -5, "Task A")).rejects.toThrow();
+  });
+
+  it("throws when title is empty", async () => {
+    const db = await createTestDb();
+    await expect(addTask(db, "some-feature", 1, "")).rejects.toThrow();
+  });
+});
+
+describe("updateTaskStatus — validation", () => {
+  it("throws when featureId is empty", async () => {
+    const db = await createTestDb();
+    await expect(updateTaskStatus(db, "", 1, 1, "done")).rejects.toThrow();
+  });
+
+  it("throws when phaseId is not positive", async () => {
+    const db = await createTestDb();
+    await expect(updateTaskStatus(db, "some-feature", 0, 1, "done")).rejects.toThrow();
+  });
+
+  it("throws when taskId is not positive", async () => {
+    const db = await createTestDb();
+    await expect(updateTaskStatus(db, "some-feature", 1, -1, "done")).rejects.toThrow();
+  });
+
+  it("throws when status is invalid", async () => {
+    const db = await createTestDb();
+    // @ts-expect-error intentional invalid input
+    await expect(updateTaskStatus(db, "some-feature", 1, 1, "bad")).rejects.toThrow();
+  });
+});
 
 describe("addTask", () => {
   it("inserts a task and returns it", async () => {
