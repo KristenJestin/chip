@@ -11,6 +11,7 @@ import { registerCriteriaCommands } from "./criterion";
 import { registerNextCommands } from "./next";
 import { registerBatchCommands } from "./batch";
 import { registerSummaryCommands } from "./summary";
+import { registerEventCommands } from "./event";
 
 const program = new Command()
   .name("chip")
@@ -29,5 +30,6 @@ registerCriteriaCommands(program);
 registerNextCommands(program);
 registerBatchCommands(program);
 registerSummaryCommands(program);
+registerEventCommands(program);
 
 program.parseAsync(process.argv);

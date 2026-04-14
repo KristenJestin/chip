@@ -1,4 +1,4 @@
-import type { features, phases, tasks, logs, sessions, findings, criteria, taskDependencies } from "./schema";
+import type { features, phases, tasks, logs, sessions, findings, criteria, taskDependencies, events } from "./schema";
 
 // ── Scalar row types inferred from the schema ────────────────────────────────
 
@@ -10,6 +10,7 @@ export type Session = typeof sessions.$inferSelect;
 export type Finding = typeof findings.$inferSelect;
 export type Criterion = typeof criteria.$inferSelect;
 export type TaskDependency = typeof taskDependencies.$inferSelect;
+export type Event = typeof events.$inferSelect;
 
 // ── Composite types used by services ────────────────────────────────────────
 
