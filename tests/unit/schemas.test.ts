@@ -194,11 +194,25 @@ describe("AddTaskInput", () => {
 
 describe("UpdateTaskStatusInput", () => {
   it("accepts all valid statuses", () => {
-    for (const status of ["todo", "in-progress", "review", "done"]) {
+    // 'review' was removed — only todo | in-progress | done are valid for tasks
+    for (const status of ["todo", "in-progress", "done"]) {
       expect(() =>
         validate(UpdateTaskStatusInput, { featureId: "f", phaseId: 1, taskId: 2, status }),
       ).not.toThrow();
     }
+  });
+
+  // Regression: 'review' was previously accepted but is now an invalid task status.
+  // The value 'review' was incorrectly kept in the task enum — it must now be rejected.
+  it("rejects 'review' — removed from task status enum", () => {
+    expect(() =>
+      validate(UpdateTaskStatusInput, {
+        featureId: "f",
+        phaseId: 1,
+        taskId: 2,
+        status: "review",
+      }),
+    ).toThrow();
   });
 
   it("rejects an invalid status", () => {

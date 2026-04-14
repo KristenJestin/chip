@@ -47,6 +47,15 @@ describe("updateTaskStatus — validation", () => {
     // @ts-expect-error intentional invalid input
     await expect(updateTaskStatus(db, "some-feature", 1, 1, "bad")).rejects.toThrow();
   });
+
+  // Regression: 'review' was previously a valid task status but was removed.
+  // Tasks only support todo | in-progress | done. Attempting to set 'review'
+  // must now throw a validation error.
+  it("throws when status is 'review' (removed from task status enum)", async () => {
+    const db = await createTestDb();
+    // @ts-expect-error intentional invalid input — 'review' no longer valid for tasks
+    await expect(updateTaskStatus(db, "some-feature", 1, 1, "review")).rejects.toThrow();
+  });
 });
 
 describe("addTask", () => {
@@ -171,7 +180,7 @@ describe("updateTaskStatus", () => {
     const originalStartedAt = first.startedAt;
 
     // Act
-    await updateTaskStatus(db, featureId, phase.id, task.id, "review");
+    await updateTaskStatus(db, featureId, phase.id, task.id, "done");
     const second = await updateTaskStatus(db, featureId, phase.id, task.id, "in-progress");
 
     // Assert
@@ -202,7 +211,7 @@ describe("updateTaskStatus", () => {
     const task = await addTask(db, featureId, phase.id, "Task A");
 
     // Act
-    const updated = await updateTaskStatus(db, featureId, phase.id, task.id, "review");
+    const updated = await updateTaskStatus(db, featureId, phase.id, task.id, "in-progress");
 
     // Assert
     expect(updated.completedAt).toBeNull();

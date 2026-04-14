@@ -9,6 +9,7 @@ import {
   addTask,
   updateTaskStatus,
 } from "../core/task";
+import { addTaskDependency } from "../core/dependency";
 
 // ── Commander registration ────────────────────────────────────────────────────
 
@@ -25,6 +26,7 @@ export function registerTaskCommands(program: Command): void {
     .argument("[description]", "Task description")
     .option("--type <type>", `Task type (${VALID_TASK_TYPES.join("|")})`, "feature")
     .option("--parent <task-id>", "Parent task ID (for fix/docs/test tasks)")
+    .option("--blocked-by <task-id>", "Block this task until the given task ID is done")
     .action(async (featureId, phaseIdStr, title, description, options) => {
       const db = await getDb();
       const phaseId = parseInt(phaseIdStr, 10);
@@ -32,7 +34,7 @@ export function registerTaskCommands(program: Command): void {
 
       const type = options.type as TaskType;
       if (!(VALID_TASK_TYPES as readonly string[]).includes(type)) {
-        die(`Invalid type: ${type}. Must be one of: ${VALID_TASK_TYPES.join(", ")}`);
+        die(`Invalid type: ${type}. Valid values: ${VALID_TASK_TYPES.join(", ")}`);
       }
 
       const parentTaskId =
@@ -41,12 +43,23 @@ export function registerTaskCommands(program: Command): void {
         die(`Invalid parent task ID: ${options.parent}`);
       }
 
+      const blockedById =
+        options.blockedBy != null ? parseInt(options.blockedBy, 10) : undefined;
+      if (blockedById !== undefined && isNaN(blockedById)) {
+        die(`Invalid blocking task ID: ${options.blockedBy}`);
+      }
+
       try {
         const task = await addTask(db, featureId, phaseId, title, description, {
           type,
           parentTaskId,
         });
-        console.log(`Added task ${task.id} to phase ${phaseId}: ${title}`);
+        console.log(`Task ${task.id} added to phase ${phaseId}: ${title}`);
+
+        if (blockedById !== undefined) {
+          await addTaskDependency(db, featureId, task.id, blockedById);
+          console.log(`Task ${task.id} blocked by task ${blockedById}`);
+        }
       } catch (err) {
         die(errMsg(err));
       }
@@ -67,8 +80,11 @@ export function registerTaskCommands(program: Command): void {
       const taskId = parseInt(taskIdStr, 10);
       if (isNaN(taskId)) die(`Invalid task ID: ${taskIdStr}`);
       if (!(VALID_TASK_STATUSES as readonly string[]).includes(statusStr)) {
-        die(`Invalid status: ${statusStr}. Must be one of: ${VALID_TASK_STATUSES.join(", ")}`);
+        die(
+          `Invalid status: ${statusStr}. Valid values: ${VALID_TASK_STATUSES.join(", ")}`,
+        );
       }
+
       try {
         const task = await updateTaskStatus(
           db,
@@ -77,7 +93,7 @@ export function registerTaskCommands(program: Command): void {
           taskId,
           statusStr as PhaseTaskStatus,
         );
-        console.log(`Task ${task.id} status → ${task.status}`);
+        console.log(`Task ${task.id}: status → ${task.status}`);
       } catch (err) {
         die(errMsg(err));
       }

@@ -13,6 +13,7 @@ import {
   exportFeature,
   updateFeatureStage,
 } from "../core/feature";
+import { getFeatureDependencyMap } from "../core/dependency";
 
 // ── Commander registration ────────────────────────────────────────────────────
 
@@ -74,6 +75,10 @@ export function registerFeatureCommands(program: Command): void {
 
       const { feature, phases: featurePhases, recentLogs, findings, criteria } = details;
 
+      // Fetch dependency map for all tasks in one batch
+      const allTaskIds = featurePhases.flatMap((p) => p.tasks.map((t) => t.id));
+      const depMap = await getFeatureDependencyMap(db, allTaskIds);
+
       // ── header ──────────────────────────────────────────────────────────────
       console.log(`feature: ${feature.id}`);
       console.log(sep());
@@ -114,6 +119,17 @@ export function registerFeatureCommands(program: Command): void {
                 `          ${task.order}.  ${statusBadge(task.status)}  ${task.title}${typeTag}`,
               );
               if (task.description) console.log(`                ${task.description}`);
+
+              const blockedBy = depMap.blockedBy.get(task.id);
+              if (blockedBy && blockedBy.length > 0) {
+                const names = blockedBy.map((t) => `#${t.id} ${t.title}`).join(", ");
+                console.log(`                Blocked by: ${names}`);
+              }
+              const blocks = depMap.blocks.get(task.id);
+              if (blocks && blocks.length > 0) {
+                const names = blocks.map((t) => `#${t.id} ${t.title}`).join(", ");
+                console.log(`                Blocks: ${names}`);
+              }
             }
           }
           console.log("");
