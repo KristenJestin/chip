@@ -2,15 +2,13 @@ import { eq } from "drizzle-orm";
 import { type Db } from "../db/client";
 import { type Phase } from "../db/types";
 import { phases, features } from "../db/schema";
-import { assertFeatureExists, assertPhaseExists, nextPhaseOrder } from "../db/helpers";
+import { assertFeatureExists, assertPhaseExists, nextPhaseOrder, ADVANCED_STAGES } from "../db/helpers";
 import { nowUnix } from "../utils/time";
 import { validate } from "./validate";
 import { AddPhaseInput, UpdatePhaseStatusInput } from "./schemas";
 
 export const VALID_PHASE_STATUSES = ["todo", "in-progress", "review", "done"] as const;
 export type PhaseTaskStatus = (typeof VALID_PHASE_STATUSES)[number];
-
-const ADVANCED_STAGES = new Set(["review", "documentation", "released"]);
 
 // ── Services ──────────────────────────────────────────────────────────────────
 
@@ -22,15 +20,18 @@ export async function addPhase(
   options?: { force?: boolean },
 ): Promise<Phase> {
   validate(AddPhaseInput, { featureId, title, description });
-  await assertFeatureExists(db, featureId);
 
-  if (!options?.force) {
-    const feature = await db.query.features.findFirst({ where: { id: featureId } });
-    if (feature && ADVANCED_STAGES.has(feature.stage)) {
-      throw new Error(
-        `Cannot add phase: feature is in '${feature.stage}' stage. Use --force to override.`,
-      );
-    }
+  // Single query: existence check + stage guard in one round-trip
+  const feature = await db.query.features.findFirst({
+    where: { id: featureId },
+    columns: { id: true, stage: true },
+  });
+  if (!feature) throw new Error(`Feature not found: ${featureId}`);
+
+  if (!options?.force && ADVANCED_STAGES.has(feature.stage)) {
+    throw new Error(
+      `Cannot add phase: feature is in '${feature.stage}' stage. Use --force to override.`,
+    );
   }
 
   const order = await nextPhaseOrder(db, featureId);

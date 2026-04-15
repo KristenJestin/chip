@@ -7,6 +7,7 @@ import {
   assertPhaseExists,
   assertTaskExists,
   nextTaskOrder,
+  ADVANCED_STAGES,
 } from "../db/helpers";
 import { nowUnix } from "../utils/time";
 import { validate } from "./validate";
@@ -19,8 +20,6 @@ export type PhaseTaskStatus = (typeof VALID_TASK_STATUSES)[number];
 
 export const VALID_TASK_TYPES = ["feature", "fix", "docs", "test"] as const;
 export type TaskType = (typeof VALID_TASK_TYPES)[number];
-
-const ADVANCED_STAGES = new Set(["review", "documentation", "released"]);
 
 // ── Services ──────────────────────────────────────────────────────────────────
 
@@ -40,17 +39,21 @@ export async function addTask(
     type: options?.type,
     parentTaskId: options?.parentTaskId,
   });
-  await assertFeatureExists(db, featureId);
-  await assertPhaseExists(db, phaseId, featureId);
 
-  if (!options?.force) {
-    const feature = await db.query.features.findFirst({ where: { id: featureId } });
-    if (feature && ADVANCED_STAGES.has(feature.stage)) {
-      throw new Error(
-        `Cannot add task: feature is in '${feature.stage}' stage. Use --force to override.`,
-      );
-    }
+  // Single query: existence check + stage guard in one round-trip
+  const feature = await db.query.features.findFirst({
+    where: { id: featureId },
+    columns: { id: true, stage: true },
+  });
+  if (!feature) throw new Error(`Feature not found: ${featureId}`);
+
+  if (!options?.force && ADVANCED_STAGES.has(feature.stage)) {
+    throw new Error(
+      `Cannot add task: feature is in '${feature.stage}' stage. Use --force to override.`,
+    );
   }
+
+  await assertPhaseExists(db, phaseId, featureId);
 
   const order = await nextTaskOrder(db, phaseId);
   const now = nowUnix();

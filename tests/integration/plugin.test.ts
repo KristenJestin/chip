@@ -83,6 +83,21 @@ describe("featureTools", () => {
     ) as { featureId: string };
     expect(result.featureId).toBe("summary-feature");
   });
+
+  it("chip_feature_update updates title and returns { id, title, status }", async () => {
+    const db = await createTestDb();
+    const tools = featureTools(db);
+    await tools.chip_feature_create.execute({ title: "Update Me" }, ctx);
+    const result = parse(
+      await tools.chip_feature_update.execute(
+        { featureId: "update-me", title: "Updated Title" },
+        ctx,
+      ),
+    ) as { id: string; title: string; status: string };
+    expect(result.id).toBe("update-me");
+    expect(result.title).toBe("Updated Title");
+    expect(result.status).toBe("active");
+  });
 });
 
 // ── sessionTools ──────────────────────────────────────────────────────────────
@@ -171,6 +186,34 @@ describe("phaseTools", () => {
       ),
     ) as { phase: { status: string }; stageAdvanced: boolean };
     expect(result.phase.status).toBe("in-progress");
+  });
+
+  it("chip_phase_status sets stageAdvanced=true when all phases done in development stage", async () => {
+    const db = await createTestDb();
+    const ft = featureTools(db);
+    await ft.chip_feature_create.execute({ title: "Auto Advance Feature" }, ctx);
+    // Advance feature to development so auto-advance to review can trigger
+    await ft.chip_feature_stage.execute(
+      { featureId: "auto-advance-feature", stage: "development" },
+      ctx,
+    );
+    const pt = phaseTools(db);
+    const phase = parse(
+      await pt.chip_phase_add.execute(
+        { featureId: "auto-advance-feature", title: "Phase 1" },
+        ctx,
+      ),
+    ) as { id: number };
+    // Marking the only phase done in development should auto-advance to review
+    const result = parse(
+      await pt.chip_phase_status.execute(
+        { featureId: "auto-advance-feature", phaseId: phase.id, status: "done" },
+        ctx,
+      ),
+    ) as { phase: { status: string }; stageAdvanced: boolean };
+    expect(result.phase.status).toBe("done");
+    // stageAdvanced must be true — previously this field was cast but never asserted
+    expect(result.stageAdvanced).toBe(true);
   });
 });
 
