@@ -2,108 +2,108 @@
 description: Implement the next pending phase of a chip feature using orchestrator/sub-agent model
 ---
 
-Tu es un développeur senior. Tu orchestres l'implémentation d'une feature chip en mode orchestrateur/sous-agents : tu gères tous les statuts chip et tu délègues l'exécution du code à des sous-agents parallèles quand c'est possible.
+You are a senior developer. You orchestrate the implementation of a chip feature in orchestrator/sub-agent mode: you manage all chip statuses and delegate code execution to parallel sub-agents when possible.
 
-## Feature cible
+## Target feature
 
-!`chip feature status "$1" 2>/dev/null || echo "ERREUR : feature chip introuvable. Utilise 'chip feature list' pour voir les features disponibles."`
+!`chip feature status "$1" 2>/dev/null || echo "ERROR: chip feature not found. Use 'chip feature list' to see available features."`
 
-## Prochaine action recommandée
+## Next recommended action
 
 !`chip next "$1" 2>/dev/null || echo ""`
 
-## Critères en attente
+## Pending criteria
 
 !`chip criteria list "$1" --pending 2>/dev/null || echo ""`
 
-## Contexte git
+## Git context
 
-!`git log --oneline -10 2>/dev/null || echo "(pas de repo git détecté)"`
+!`git log --oneline -10 2>/dev/null || echo "(no git repo detected)"`
 
 ---
 
-## PROCESSUS
+## PROCESS
 
-### 1. Lecture de l'état actuel
+### 1. Read the current state
 
-Lis la sortie de `chip feature status` et `chip next` ci-dessus. Identifie la première phase avec status `todo` ou `in-progress`. C'est la phase à travailler.
+Read the output of `chip feature status` and `chip next` above. Identify the first phase with status `todo` or `in-progress`. That is the phase to work on.
 
-Si `chip next` indique qu'il n'y a plus rien à faire (toutes phases `done`), annonce que la feature est prête pour review et arrête-toi.
+If `chip next` indicates there is nothing left to do (all phases `done`), announce that the feature is ready for review and stop.
 
-Si une ambiguïté sur une tâche nécessite de consulter le PRD de référence :
+If an ambiguity on a task requires consulting the reference PRD:
 
 ```bash
 chip feature export <feature-id>
 ```
 
-### 2. Démarrage de la session
+### 2. Start the session
 
 ```bash
-chip feature stage <feature-id> development    # seulement si encore en 'planning'
+chip feature stage <feature-id> development    # only if still in 'planning'
 chip session start <feature-id> dev --phase <phase-id>
 ```
 
-Note le session-id. Si la phase est en `todo`, passe-la `in-progress` :
+Note the session-id. If the phase is in `todo`, move it to `in-progress`:
 
 ```bash
 chip phase status <feature-id> <phase-id> in-progress
 ```
 
-### 3. Analyse de parallélisation
+### 3. Parallelization analysis
 
-Avant tout lancement de sous-agent, analyse les tâches `todo` de la phase :
+Before launching any sub-agent, analyze the `todo` tasks of the phase:
 
-**a. Identifier les tâches indépendantes**
+**a. Identify independent tasks**
 
 ```bash
 chip next <feature-id>
 ```
 
-Regroupe les tâches `todo` par groupes de parallélisation :
-- Une tâche avec des blockers `todo` est **séquentielle** — elle doit attendre
-- Une tâche sans blockers `todo` est **candidat parallèle**
+Group `todo` tasks into parallelization groups:
+- A task with `todo` blockers is **sequential** — it must wait
+- A task with no `todo` blockers is a **parallel candidate**
 
-**b. Détecter les conflits fichiers**
+**b. Detect file conflicts**
 
-Pour chaque tâche candidate, estime les fichiers qu'elle va toucher à partir de son titre et sa description. Compare avec les autres candidats :
+For each candidate task, estimate the files it will touch based on its title and description. Compare with other candidates:
 
-| Tâche | Fichiers estimés | Conflits |
-|-------|-----------------|---------|
+| Task | Estimated files | Conflicts |
+|------|----------------|---------|
 
-Si deux tâches candidates touchent le même fichier, exécute-les **séquentiellement** dans l'ordre de dépendance logique. Annote ton raisonnement dans le chat.
+If two candidate tasks touch the same file, execute them **sequentially** in logical dependency order. Annotate your reasoning in the chat.
 
-**c. Constituer les groupes d'exécution**
+**c. Form execution groups**
 
-Exemple :
-- **Groupe 1 (parallèle)** : tâches A, B, C (pas de conflits fichiers entre elles)
-- **Groupe 2 (séquentiel, après groupe 1)** : tâche D (dépend de A)
-- **Groupe 3 (séquentiel, après groupe 2)** : tâche E (touche les mêmes fichiers que D)
+Example:
+- **Group 1 (parallel)**: tasks A, B, C (no file conflicts between them)
+- **Group 2 (sequential, after group 1)**: task D (depends on A)
+- **Group 3 (sequential, after group 2)**: task E (touches the same files as D)
 
-### 4. Exécution groupe par groupe
+### 4. Execution group by group
 
-Pour chaque groupe :
+For each group:
 
-**a. Démarrer les tâches**
+**a. Start the tasks**
 
-Pour chaque tâche du groupe :
+For each task in the group:
 
 ```bash
 chip task status <feature-id> <phase-id> <task-id> in-progress
 ```
 
-**b. Lancer les sous-agents**
+**b. Launch sub-agents**
 
-Lance un sous-agent par tâche, en parallèle pour les tâches d'un même groupe. Fournis à chaque sous-agent :
+Launch one sub-agent per task, in parallel for tasks in the same group. Provide each sub-agent with:
 
-- L'ID feature, phase, tâche, et session
-- Le titre et la description complète de la tâche
-- La liste des fichiers estimés (pour qu'il confirme ou ajuste)
-- Les tâches déjà complétées dans cette phase (contexte)
-- Le contrat sous-agent : `/chip_dev_subagent $FEATURE_ID $PHASE_ID $TASK_ID $SESSION_ID`
+- The feature, phase, task, and session IDs
+- The task title and full description
+- The list of estimated files (so it can confirm or adjust)
+- The tasks already completed in this phase (context)
+- The sub-agent contract: `/chip_dev_subagent $FEATURE_ID $PHASE_ID $TASK_ID $SESSION_ID`
 
-**c. Attendre et collecter les résultats**
+**c. Wait and collect results**
 
-Chaque sous-agent retourne un JSON structuré **et** émet un event `task_result` dans chip :
+Each sub-agent returns a structured JSON **and** emits a `task_result` event in chip:
 
 ```json
 {
@@ -116,7 +116,7 @@ Chaque sous-agent retourne un JSON structuré **et** émet un event `task_result
 }
 ```
 
-En cas de doute sur le résultat, ou pour vérifier l'historique, consulte l'event dans chip :
+If in doubt about the result, or to verify history, consult the event in chip:
 
 ```bash
 chip event list <feature-id> --kind task_result --task <task-id>
@@ -125,114 +125,147 @@ chip event list <feature-id> --kind task_result --task <task-id>
 > **Note:** the stored event does not have a `status` field — infer it from the data:
 > success = `issues` is empty **and** `test_result.passed` is `true`; failure otherwise.
 
-**d. Traiter chaque résultat**
+**d. Process each result**
 
-Pour chaque résultat :
+For each result:
 
-**Si `status: "done"`, `issues` vide, et `test_result.passed: true` :**
+**If `status: "done"`, `issues` empty, and `test_result.passed: true`:**
 
 ```bash
 chip task status <feature-id> <phase-id> <task-id> done
-chip log add <feature-id> "Task <task-id> done — <résumé>. Tests: <N> passed." --phase <phase-id> --task <task-id> --source chip_dev
+chip log add <feature-id> "Task <task-id> done — <summary>. Tests: <N> passed." --phase <phase-id> --task <task-id> --source chip_dev
 ```
 
-**Si `status: "failed"`, `issues` non vide, ou `test_result.passed: false` :**
+**If `status: "failed"`, `issues` non-empty, or `test_result.passed: false`:**
 
 ```bash
 # Reset the task for retry
 chip task status <feature-id> <phase-id> <task-id> todo
-chip finding add <feature-id> "[task <task-id>] <description de l'échec depuis issues>" \
+chip finding add <feature-id> "[task <task-id>] <failure description from issues>" \
   --pass technical --severity major --session <session-id>
-chip log add <feature-id> "Task <task-id> failed: <résumé du problème>" --phase <phase-id> --task <task-id> --source chip_dev
+chip log add <feature-id> "Task <task-id> failed: <problem summary>" --phase <phase-id> --task <task-id> --source chip_dev
 ```
 
-Décide ensuite : relancer le sous-agent après correction, ou bloquer la phase.
+Then decide: re-launch the sub-agent after correction, or block the phase.
 
-### 5. Fin de phase
+### 5. End of phase
 
-Quand toutes les tâches de la phase sont `done` :
+When all tasks in the phase are `done`:
+
+For `feat` or `fix` phases, create a changeset file before closing the phase:
+
+```bash
+# Create .changeset/<feature-id>.md with the appropriate bump type:
+# patch = bug fix or minor non-breaking change
+# minor = new feature (backward-compatible)
+# major = breaking change
+bunx changeset add
+```
+
+Commit the changeset file along with the other changes from the phase:
+
+```bash
+git add .changeset/<feature-id>.md
+git commit -m "chore: add changeset for <feature-id>"
+```
+
+Phases of type `chore` or `docs` do not require a changeset.
 
 ```bash
 chip phase status <feature-id> <phase-id> done
 ```
 
-Vérifie les critères rattachés à cette phase :
+Check the criteria attached to this phase:
 
 ```bash
 chip criteria list <feature-id> --phase <phase-id> --pending
 ```
 
-Pour chaque critère satisfait :
+For each satisfied criterion:
 
 ```bash
 chip criteria check <criteria-id> --source chip_dev
 ```
 
-Clore la session :
+Close the session:
 
 ```bash
-chip session end <session-id> "Phase <N> '<nom>' terminée. <N> tâches livrées : <liste courte>."
+chip session end <session-id> "Phase <N> '<name>' completed. <N> tasks delivered: <short list>."
 ```
 
-### 6. Vérification globale et avancement de stage
+### 6. Global verification and stage advancement
 
 ```bash
 chip next <feature-id>
 chip summary <feature-id>
 ```
 
-Si toutes les phases sont `done` et qu'il n'y a plus de tâches bloquantes :
+If all phases are `done` and there are no more blocking tasks:
 
 ```bash
-chip log add <feature-id> "Toutes les phases terminées. Feature prête pour review." --source chip_dev
+chip log add <feature-id> "All phases completed. Feature ready for review." --source chip_dev
 chip feature stage <feature-id> review
 ```
 
-Annonce clairement dans le chat que la phase est terminée. Attends validation avant de continuer vers la phase suivante.
+Announce clearly in the chat that the phase is complete. Wait for validation before continuing to the next phase.
 
 ---
 
-## RÈGLES
+## BEHAVIOR
 
-- Une phase à la fois. Arrête-toi après avoir terminé et clos la session.
-- Tout le code et les identifiants en anglais. Les commentaires dans le code en anglais.
-- Les logs chip sont factuels et concis — utiles pour un agent qui reprend sans contexte.
-- **L'orchestrateur est seul responsable de `chip task status`, `chip phase status`, `chip session *`, et `chip feature stage`** — les sous-agents ne les appellent jamais.
-- L'orchestrateur détecte les conflits fichiers **avant** tout lancement de sous-agent parallèle.
-- En cas d'échec d'un sous-agent à mi-chemin, la tâche est remise `todo` avec un finding — jamais laissée `in-progress`.
-- `chip next` est la source de vérité pour savoir quoi faire ensuite. Consulte-le en cas de doute.
-- Si une tâche chip est ambiguë, consulte `chip feature export <feature-id>`, puis pose la question.
-- Ne saute pas les mises à jour de statut chip — elles construisent l'historique de la feature.
+### Think Before Coding
+Before delegating any task to a sub-agent, re-read the task description and the chip feature export. If the task scope is ambiguous or the chosen approach has significant architectural tradeoffs, stop and surface the question — do not proceed with a silent assumption that a sub-agent will resolve it. Verify that the parallelization analysis is accurate before launching parallel agents.
 
-## OBLIGATIONS TESTS (pour les sous-agents et pour l'orchestrateur en mode direct)
+### Simplicity First
+Delegate the minimum number of sub-agents required to complete the phase. Do not introduce extra tasks, intermediate abstractions, or speculative refactors that the phase description does not ask for. If a single sequential sub-agent suffices, use it.
 
-Ces obligations s'appliquent à tout code livré dans cette session, que ce soit via sous-agent ou directement :
+### Surgical Changes
+The orchestrator's scope is the current phase only. If you notice issues in other phases or in already-completed work, add a chip finding — do not silently expand the phase scope or retroactively modify completed tasks.
 
-### Obligation 1 — Tests obligatoires pour tout nouveau code
+---
 
-**Toute tâche qui produit du nouveau code doit inclure ses propres tests.** Il ne suffit pas que les tests existants passent — les nouvelles fonctions, modules, ou comportements doivent être couverts.
+## RULES
 
-Couverture minimale par tâche :
-- **Cas nominal** — la bonne entrée produit la bonne sortie
-- **Cas d'erreur** — entrée invalide, entité manquante, état incorrect
-- **Cas limite pertinent** — valeur vide, valeur max, concurrent, etc.
+- One phase at a time. Stop after completing and closing the session.
+- All code and identifiers in English. All comments in the code in English.
+- chip logs are factual and concise — useful for an agent picking up without context.
+- **The orchestrator is solely responsible for `chip task status`, `chip phase status`, `chip session *`, and `chip feature stage`** — sub-agents never call these.
+- The orchestrator detects file conflicts **before** launching any parallel sub-agent.
+- If a sub-agent fails mid-way, the task is reset to `todo` with a finding — never left as `in-progress`.
+- `chip next` is the source of truth for what to do next. Consult it when in doubt.
+- If a chip task is ambiguous, consult `chip feature export <feature-id>`, then ask the question.
+- Do not skip chip status updates — they build the feature history.
+- **Changeset convention:** Every phase of type `feat` or `fix` must include a `.changeset/<feature-id>.md` file before the phase can be marked `done`. Use the correct bump type: `patch` for a bug fix or minor change, `minor` for a new feature, `major` for a breaking change. Phases of type `chore` or `docs` do not require a changeset.
 
-Une tâche **ne peut pas être marquée `done`** si ces tests n'ont pas été écrits.
+## TEST OBLIGATIONS (for sub-agents and for the orchestrator in direct mode)
 
-### Obligation 2 — Lancer la suite complète avant `done`
+These obligations apply to all code delivered in this session, whether via sub-agent or directly:
 
-Avant d'appeler `chip task status <id> done`, lance toujours :
+### Obligation 1 — Tests required for all new code
+
+**Every task that produces new code must include its own tests.** It is not enough for existing tests to pass — new functions, modules, or behaviors must be covered.
+
+Minimum coverage per task:
+- **Nominal case** — correct input produces correct output
+- **Error case** — invalid input, missing entity, incorrect state
+- **Relevant edge case** — empty value, max value, concurrent, etc.
+
+A task **cannot be marked `done`** if these tests have not been written.
+
+### Obligation 2 — Run the full suite before `done`
+
+Before calling `chip task status <id> done`, always run:
 
 ```bash
 bun run test
 ```
 
-- Si tous les tests passent : inclure le résultat dans le log (`N tests passed`).
-- Si des tests cassent : **rester `in-progress`**, logguer l'échec, corriger avant de continuer.
+- If all tests pass: include the result in the log (`N tests passed`).
+- If tests fail: **stay `in-progress`**, log the failure, fix before continuing.
 
 ```bash
 chip log add <feature-id> "Tests failed before marking task done: <N> failures" \
   --phase <phase-id> --task <task-id> --source chip_dev
 ```
 
-Ne jamais marquer une tâche `done` avec des tests cassés.
+Never mark a task `done` with failing tests.

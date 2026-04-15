@@ -169,8 +169,8 @@ describe("phaseTools", () => {
         { featureId: "pstatus-feature", phaseId: phase.id, status: "in-progress" },
         ctx,
       ),
-    ) as { status: string };
-    expect(result.status).toBe("in-progress");
+    ) as { phase: { status: string }; stageAdvanced: boolean };
+    expect(result.phase.status).toBe("in-progress");
   });
 });
 

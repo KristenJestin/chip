@@ -1,9 +1,9 @@
-# chip — référence agent
+# chip — agent reference
 
-`chip` est un CLI de persistance structurée pour features, phases, tâches, sessions, findings et critères.
-La base de données est à `.chip/chip.db` dans le répertoire courant (créé automatiquement au premier usage).
+`chip` is a structured persistence CLI for features, phases, tasks, sessions, findings and criteria.
+The database is at `.chip/chip.db` in the current directory (created automatically on first use).
 
-Workflow standard : `planning` → `development` → `review` → `documentation` → `released`
+Standard workflow: `planning` → `development` → `review` → `documentation` → `released`
 
 ---
 
@@ -18,12 +18,12 @@ chip feature export <feature-id>
 chip feature summary <feature-id>
 ```
 
-Stages dans l'ordre : `planning` → `development` → `review` → `documentation` → `released`
+Stages in order: `planning` → `development` → `review` → `documentation` → `released`
 
-**Exemples**
+**Examples**
 
 ```
-chip feature create "Auth Module" "Login et registration"
+chip feature create "Auth Module" "Login and registration"
 chip feature list
 chip feature status auth-module
 chip feature stage auth-module development
@@ -40,33 +40,33 @@ chip phase add <feature-id> <title> [description]
 chip phase status <feature-id> <phase-id> <status>
 ```
 
-Statuts valides : `todo` | `in-progress` | `review` | `done`
+Valid statuses: `todo` | `in-progress` | `review` | `done`
 
-**Exemples**
+**Examples**
 
 ```
-chip phase add auth-module "Setup" "Scaffold et config"
+chip phase add auth-module "Setup" "Scaffold and config"
 chip phase status auth-module 1 in-progress
 chip phase status auth-module 1 done
 ```
 
 ---
 
-## Tâches
+## Tasks
 
 ```
 chip task add <feature-id> <phase-id> <title> [description] [--type <type>] [--parent <id>]
 chip task status <feature-id> <phase-id> <task-id> <status>
 ```
 
-Types : `feature` | `fix` | `docs` | `test`
-Statuts : `todo` | `in-progress` | `review` | `done`
+Types: `feature` | `fix` | `docs` | `test`
+Statuses: `todo` | `in-progress` | `review` | `done`
 
-**Exemples**
+**Examples**
 
 ```
-chip task add auth-module 1 "Écrire les tests" "" --type test
-chip task add auth-module 1 "Implémenter le service" "Business logic" --type feature
+chip task add auth-module 1 "Write tests" "" --type test
+chip task add auth-module 1 "Implement service" "Business logic" --type feature
 chip task status auth-module 1 2 in-progress
 chip task status auth-module 1 2 done
 ```
@@ -80,10 +80,10 @@ chip log add <feature-id> <message> [--phase <id>] [--task <id>] [--source <cmd>
 chip log list <feature-id> [--limit <n>]
 ```
 
-**Exemples**
+**Examples**
 
 ```
-chip log add auth-module "JWT refresh implémenté" --phase 1 --task 2 --source chip_dev
+chip log add auth-module "JWT refresh implemented" --phase 1 --task 2 --source chip_dev
 chip log list auth-module --limit 20
 ```
 
@@ -98,14 +98,14 @@ chip session list <feature-id> [--type <type>]
 chip session current [feature-id]
 ```
 
-Types : `prd` | `dev` | `review` | `docs`
+Types: `prd` | `dev` | `review` | `docs`
 
-**Exemples**
+**Examples**
 
 ```
 chip session start auth-module dev --phase 1
 chip session current auth-module
-chip session end 3 "Phase 1 terminée. Scaffold + config + tests de base."
+chip session end 3 "Phase 1 complete. Scaffold + config + basic tests."
 chip session list auth-module --type dev
 ```
 
@@ -119,23 +119,23 @@ chip finding list <feature-id> [--unresolved] [--pass <pass>] [--severity <sev>]
 chip finding resolve <finding-id> <resolution> [--task <task-id>]
 ```
 
-Pass : `business` | `technical`
-Severity : `critical` | `major` | `minor` | `suggestion`
-Category : `security` | `convention` | `quality` | `test` | `scope` | `correctness`
+Pass: `business` | `technical`
+Severity: `critical` | `major` | `minor` | `suggestion`
+Category: `security` | `convention` | `quality` | `test` | `scope` | `correctness`
 
-**Exemples**
+**Examples**
 
 ```
-chip finding add auth-module "Token non révoqué à la déconnexion" --pass business --severity critical --session 3
-chip finding add auth-module "Variable non utilisée dans auth.service.ts" --pass technical --severity minor --session 3
+chip finding add auth-module "Token not revoked on logout" --pass business --severity critical --session 3
+chip finding add auth-module "Unused variable in auth.service.ts" --pass technical --severity minor --session 3
 chip finding list auth-module --unresolved
-chip finding resolve 2 "Corrigé inline — révocation ajoutée dans logout()"
-chip finding resolve 3 "Tâche fix créée : task 8" --task 8
+chip finding resolve 2 "Fixed inline — revocation added in logout()"
+chip finding resolve 3 "Fix task created: task 8" --task 8
 ```
 
 ---
 
-## Critères d'acceptation
+## Acceptance criteria
 
 ```
 chip criteria add <feature-id> <description> [--phase <id>]
@@ -143,36 +143,36 @@ chip criteria check <criteria-id> [--source <source>]
 chip criteria list <feature-id> [--pending] [--phase <id>]
 ```
 
-**Exemples**
+**Examples**
 
 ```
-chip criteria add auth-module "Tous les endpoints sont protégés par JWT"
-chip criteria add auth-module "Tests de couverture > 80%" --phase 2
+chip criteria add auth-module "All endpoints are protected by JWT"
+chip criteria add auth-module "Test coverage > 80%" --phase 2
 chip criteria list auth-module --pending
 chip criteria check 1 --source chip_review
 ```
 
 ---
 
-## Commandes agent
+## Agent commands
 
 ```
-chip next <feature-id>                        — prochain diagnostic actionnable
-chip batch <feature-id> --json <file>         — créer phases+tâches depuis un fichier JSON
-chip summary <feature-id>                     — tableau de bord stats
+chip next <feature-id>                        — next actionable diagnostic
+chip batch <feature-id> --json <file>         — create phases+tasks from a JSON file
+chip summary <feature-id>                     — stats dashboard
 ```
 
-**Format JSON pour chip batch**
+**JSON format for chip batch**
 
 ```json
 {
   "phases": [
     {
-      "title": "Phase 1 — Nom",
-      "description": "Objectif de la phase",
+      "title": "Phase 1 — Name",
+      "description": "Phase objective",
       "tasks": [
-        { "title": "Tâche 1.1", "description": "Description actionnable", "type": "feature" },
-        { "title": "Tâche 1.2", "description": "Description actionnable", "type": "test" }
+        { "title": "Task 1.1", "description": "Actionable description", "type": "feature" },
+        { "title": "Task 1.2", "description": "Actionable description", "type": "test" }
       ]
     }
   ]
@@ -187,45 +187,45 @@ chip summary auth-module
 
 ---
 
-## Workflow agent type
+## Typical agent workflow
 
 ```bash
-# 1. PRD — créer la feature et la structurer
+# 1. PRD — create the feature and structure it
 chip feature create "Auth Module" "Login, registration, JWT"
 chip session start auth-module prd
 chip batch auth-module --json batch.json
-chip criteria add auth-module "Tous les endpoints sont couverts par des tests"
-chip log add auth-module "PRD créé. 3 phases, 8 tâches, 4 critères." --source chip_prd
-chip session end 1 "PRD auth-module. 3 phases, 8 tâches, 4 critères."
+chip criteria add auth-module "All endpoints are covered by tests"
+chip log add auth-module "PRD created. 3 phases, 8 tasks, 4 criteria." --source chip_prd
+chip session end 1 "PRD auth-module. 3 phases, 8 tasks, 4 criteria."
 
-# 2. DEV — implémenter phase par phase
+# 2. DEV — implement phase by phase
 chip feature stage auth-module development
 chip session start auth-module dev --phase 1
 chip phase status auth-module 1 in-progress
 chip task status auth-module 1 1 in-progress
 # ... code + tests ...
 chip task status auth-module 1 1 done
-chip log add auth-module "Scaffold terminé" --phase 1 --task 1 --source chip_dev
+chip log add auth-module "Scaffold complete" --phase 1 --task 1 --source chip_dev
 chip phase status auth-module 1 done
 chip criteria check 2 --source chip_dev
-chip session end 2 "Phase 1 terminée. 3 tâches livrées."
+chip session end 2 "Phase 1 complete. 3 tasks delivered."
 chip feature stage auth-module review
 
-# 3. REVIEW — deux passes avec findings
+# 3. REVIEW — two passes with findings
 chip session start auth-module review
-chip finding add auth-module "Token non révoqué" --pass business --severity critical --session 3
-chip finding add auth-module "Import orphelin" --pass technical --severity minor --session 3
+chip finding add auth-module "Token not revoked" --pass business --severity critical --session 3
+chip finding add auth-module "Orphan import" --pass technical --severity minor --session 3
 chip finding list auth-module --unresolved
-chip finding resolve 1 "Corrigé inline"
+chip finding resolve 1 "Fixed inline"
 chip criteria check 1 --source chip_review
-chip session end 3 "2 findings, 2 résolus. 0 bloquant."
+chip session end 3 "2 findings, 2 resolved. 0 blocking."
 chip feature stage auth-module documentation
 
-# 4. DOCS — mettre à jour la doc et releaser
+# 4. DOCS — update docs and release
 chip session start auth-module docs
 chip criteria list auth-module --pending
 chip criteria check 3 --source chip_docs
-chip log add auth-module "Documentation mise à jour." --source chip_docs
-chip session end 4 "Doc : 3 fichiers créés/mis à jour."
+chip log add auth-module "Documentation updated." --source chip_docs
+chip session end 4 "Docs: 3 files created/updated."
 chip feature stage auth-module released
 ```

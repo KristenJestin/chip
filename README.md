@@ -195,6 +195,28 @@ This installs ready-to-use slash commands in `.opencode/commands/`:
 
 ---
 
+## Release setup
+
+To publish releases via the GitHub Actions release workflow, a repository secret must be configured.
+
+### NPM_TOKEN
+
+1. Go to [npmjs.com](https://www.npmjs.com) and sign in.
+2. Navigate to **Access Tokens** (top-right menu > Access Tokens).
+3. Click **Generate New Token** and select the **Automation** type (bypasses 2FA for CI).
+4. Copy the generated token.
+5. In your GitHub repository, go to **Settings > Secrets and variables > Actions**.
+6. Click **New repository secret**.
+7. Set the name to `NPM_TOKEN` and paste the token as the value.
+
+The release workflow references it as:
+
+```yaml
+NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+---
+
 ## Development
 
 ```bash

@@ -1,132 +1,132 @@
 ---
-description: Reconstruire l'ensemble de la documentation depuis l'état réel du projet
+description: Rebuild the entire documentation from the actual project state
 ---
 
-Tu es un développeur senior chargé de maintenir la documentation technique du projet. Tu vas effectuer une exploration complète du codebase et reconstruire la documentation pour qu'elle reflète exactement l'état réel du code, à l'instant présent.
+You are a senior developer responsible for maintaining the project's technical documentation. You will perform a complete exploration of the codebase and rebuild the documentation to reflect exactly the actual state of the code, as of right now.
 
-**Attention à la langue :** tout le contenu produit est en français. Soigne les accents (é, è, ê, à, ù, ç, ô, î, û, etc.), les apostrophes typographiques, et la ponctuation. Un document mal orthographié n'est pas acceptable.
+**Language note:** all content produced is in English. Pay attention to spelling, punctuation, and clarity.
 
-## Features chip actives (contexte)
+## Active chip features (context)
 
-!`chip feature list 2>/dev/null || echo "(chip non disponible ou aucune feature)"`
+!`chip feature list 2>/dev/null || echo "(chip not available or no features)"`
 
-## Documentation existante
+## Existing documentation
 
-!`find docs -name "*.md" 2>/dev/null | sort || echo "(aucun dossier docs/ trouvé — adapte le chemin au projet)"`
+!`find docs -name "*.md" 2>/dev/null | sort || echo "(no docs/ folder found — adapt the path to the project)"`
 
 ---
 
-## PROCESSUS
+## PROCESS
 
-### 1. Exploration du projet
+### 1. Project exploration
 
-Commence par une exploration méthodique du codebase. L'objectif est de cartographier l'ensemble du domaine avant de toucher à un seul fichier de documentation.
+Start with a methodical exploration of the codebase. The goal is to map the entire domain before touching a single documentation file.
 
-Explore dans cet ordre selon le type de projet :
+Explore in this order based on the project type:
 
-**Modèles et schémas**
-- Localise tous les fichiers de schéma/modèle du projet (ORM, schémas de validation, types centraux).
-- Pour chaque modèle, relève : les champs et leurs types, les relations, les contraintes.
+**Models and schemas**
+- Locate all schema/model files in the project (ORM, validation schemas, central types).
+- For each model, note: fields and their types, relations, constraints.
 
-**Services et règles métier**
-- Localise tous les fichiers de service ou de logique métier.
-- Pour chaque service, identifie : les opérations exposées, les règles appliquées (conditions, validations, transitions de statuts), les effets de bord.
+**Services and business rules**
+- Locate all service or business logic files.
+- For each service, identify: exposed operations, applied rules (conditions, validations, status transitions), side effects.
 
-**Interfaces publiques**
-- Routes HTTP, commandes CLI, fonctions exportées, événements — selon le type de projet.
-- Relève les méthodes, paramètres, guards/middlewares appliqués.
+**Public interfaces**
+- HTTP routes, CLI commands, exported functions, events — depending on the project type.
+- Note methods, parameters, applied guards/middlewares.
 
-**Flux inter-modules**
-- Identifie les séquences non triviales entre modules ou services.
-- Note les dépendances et les communications entre composants.
+**Inter-module flows**
+- Identify non-trivial sequences between modules or services.
+- Note dependencies and communications between components.
 
-### 2. Audit de la documentation existante
+### 2. Audit of existing documentation
 
-Lis l'ensemble des fichiers de documentation existants.
+Read all existing documentation files.
 
-Pour chaque fichier, évalue :
-- Le contenu est-il toujours exact par rapport au code ?
-- Le fichier est-il bien classé selon l'architecture documentaire du projet ?
-- Y a-t-il du contenu qui appartient à un autre fichier ?
-- Le fichier couvre-t-il des éléments qui n'existent plus dans le code ?
+For each file, evaluate:
+- Is the content still accurate relative to the code?
+- Is the file properly classified according to the project's documentation architecture?
+- Is there content that belongs in another file?
+- Does the file cover elements that no longer exist in the code?
 
-### 3. Plan de reconstruction
+### 3. Reconstruction plan
 
-Avant de modifier quoi que ce soit, établis un plan complet :
-- Liste des fichiers à **créer** (avec leur emplacement et leur contenu prévu).
-- Liste des fichiers à **mettre à jour** (avec les sections à modifier).
-- Liste des fichiers à **déplacer ou refactoriser** (avec la justification).
-- Liste des fichiers à **supprimer** (éléments supprimés du code ou devenus obsolètes).
+Before modifying anything, establish a complete plan:
+- List of files to **create** (with their location and planned content).
+- List of files to **update** (with the sections to modify).
+- List of files to **move or refactor** (with justification).
+- List of files to **delete** (elements removed from the code or that have become obsolete).
 
-**Annonce ce plan dans le chat avant d'exécuter. C'est la seule pause du processus.**
+**Announce this plan in the chat before executing. This is the only pause in the process.**
 
-### 4. Exécution
+### 4. Execution
 
-Exécute le plan. Pour chaque fichier produit :
-- Vérifie que chaque information provient directement du code source (aucune spéculation).
-- Vérifie la validité syntaxique de chaque bloc Mermaid.
-- Vérifie que les accents et la ponctuation française sont corrects.
+Execute the plan. For each file produced:
+- Verify that every piece of information comes directly from the source code (no speculation).
+- Verify the syntactic validity of each Mermaid block.
+- Verify that spelling and punctuation are correct.
 
-Architecture recommandée si pas de structure existante :
+Recommended architecture if no existing structure:
 
 ```
 docs/
-├── README.md            ← index de navigation, maintenu automatiquement
-├── entities/            ← schémas de données, modèles, types
-│   └── {groupe}.md
-├── metier/              ← règles métier, cycles de vie, statuts
-│   └── {domaine}.md
-└── flux/                ← séquences entre modules (diagrammes Mermaid)
-    └── {flux}.md
+├── README.md            ← navigation index, maintained automatically
+├── entities/            ← data schemas, models, types
+│   └── {group}.md
+├── rules/               ← business rules, lifecycles, statuses
+│   └── {domain}.md
+└── flows/               ← sequences between modules (Mermaid diagrams)
+    └── {flow}.md
 ```
 
-Règles de classement :
-- `entities/` → modèles, schémas de champs, relations. Aucune règle métier.
-- `metier/` → règles métier, conditions, transitions de statuts. Les interfaces peuvent y être mentionnées comme points d'entrée, mais l'angle est métier.
-- `flux/` → séquences entre modules (qui appelle qui, dans quel ordre, avec quels effets). Utilise des `sequenceDiagram` Mermaid.
+Classification rules:
+- `entities/` → models, field schemas, relations. No business rules.
+- `rules/` → business rules, conditions, status transitions. Interfaces may be mentioned as entry points, but the angle is business.
+- `flows/` → sequences between modules (who calls what, in what order, with what effects). Use Mermaid `sequenceDiagram`.
 
 ### 5. README
 
-En dernier, génère ou remplace entièrement `docs/README.md` pour qu'il serve d'index exhaustif et exact de l'état final de la documentation.
+Last, generate or completely replace `docs/README.md` to serve as an exhaustive and accurate index of the final state of the documentation.
 
-Format attendu :
+Expected format:
 
 ```markdown
-# Documentation — {Nom du projet}
+# Documentation — {Project name}
 
-> Index de navigation. Maintenu automatiquement.
+> Navigation index. Maintained automatically.
 
-## Entités
+## Entities
 
-| Fichier | Contenu |
+| File | Content |
 |---|---|
 | [entities/...md](entities/...md) | ... |
 
-## Métier
+## Business Rules
 
-| Fichier | Domaine |
+| File | Domain |
 |---|---|
-| [metier/...md](metier/...md) | ... |
+| [rules/...md](rules/...md) | ... |
 
-## Flux
+## Flows
 
-| Fichier | Description |
+| File | Description |
 |---|---|
-| [flux/...md](flux/...md) | ... |
+| [flows/...md](flows/...md) | ... |
 
 ---
-Dernière mise à jour : YYYY-MM-DD
+Last updated: YYYY-MM-DD
 ```
 
-### 6. Journalisation chip (si features actives)
+### 6. chip logging (if active features)
 
-Si des features chip actives ont été documentées dans ce sync, journalise pour chacune :
+If active chip features were documented in this sync, log for each:
 
 ```bash
-chip log add <feature-id> "docs-sync : documentation mise à jour en cohérence avec l'état du code." --source chip_docs_sync
+chip log add <feature-id> "docs-sync: documentation updated in sync with the state of the code." --source chip_docs_sync
 ```
 
-Si des critères d'acceptation liés à la documentation peuvent être satisfaits :
+If documentation-related acceptance criteria can be satisfied:
 
 ```bash
 chip criteria list <feature-id> --pending
@@ -135,12 +135,19 @@ chip criteria check <criteria-id> --source chip_docs_sync
 
 ---
 
-## RÈGLES
+## BEHAVIOR
 
-- Tout le contenu est en français. Le code, les noms de champs, les routes et les identifiants techniques restent en anglais.
-- Les accents, apostrophes et majuscules doivent être corrects. Relis chaque titre et chaque phrase avant d'écrire le fichier.
-- Les diagrammes Mermaid doivent être valides syntaxiquement. Préfère un diagramme simple et juste à un diagramme riche et cassé.
-- Un fichier de documentation ne contient que ce qui est vérifié dans le code. Rien de spéculatif.
-- La suppression de fichiers obsolètes est attendue et souhaitée. Une doc qui contient des informations fausses est pire qu'une doc incomplète.
-- Si un sujet est ambigu (métier ou flux ?), tranche selon ce qui apporte le plus de valeur au lecteur.
-- Un fichier trop dense vaut mieux que dix fichiers d'une page.
+### Surgical Changes
+Update only what actually changed relative to the current code. A sync is not a rewrite — if a documentation section is still accurate, leave it untouched. If you find sections that need restructuring beyond what the code change requires, add a chip finding and stay focused on accuracy over style.
+
+---
+
+## RULES
+
+- All content is in English. Code, field names, routes and technical identifiers remain as-is.
+- Spelling, punctuation and capitalization must be correct. Re-read every title and sentence before writing the file.
+- Mermaid diagrams must be syntactically valid. Prefer a simple and correct diagram over a rich and broken one.
+- A documentation file contains only what is verified in the code. Nothing speculative.
+- Deleting obsolete files is expected and desired. Documentation containing false information is worse than incomplete documentation.
+- If a subject is ambiguous (business rules or flows?), decide based on what brings most value to the reader.
+- One dense file is better than ten one-page files.

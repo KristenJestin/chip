@@ -6,6 +6,7 @@ import {
   getFeatureDetails,
   exportFeature,
   updateFeatureStage,
+  updateFeature,
 } from "../../core/feature";
 import { getSummary } from "../../core/summary";
 
@@ -87,6 +88,25 @@ export function featureTools(db: Db): Record<string, ToolDefinition> {
       async execute(args) {
         const summary = await getSummary(db, args.featureId);
         return JSON.stringify(summary);
+      },
+    }),
+
+    chip_feature_update: tool({
+      description: "Update editable fields on a feature (title, description, status)",
+      args: {
+        featureId: tool.schema.string().min(1),
+        title: tool.schema.string().min(1).optional(),
+        description: tool.schema.string().optional(),
+        status: tool.schema.enum(["active", "done", "archived"]).optional(),
+      },
+      async execute(args) {
+        const { featureId, title, description, status } = args;
+        const feature = await updateFeature(db, featureId, {
+          ...(title !== undefined ? { title } : {}),
+          ...(description !== undefined ? { description } : {}),
+          ...(status !== undefined ? { status } : {}),
+        });
+        return JSON.stringify({ id: feature.id, title: feature.title, status: feature.status });
       },
     }),
   };

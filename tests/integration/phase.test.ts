@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createTestDb } from "../helpers/db";
-import { createFeature } from "../../src/core/feature";
+import { createFeature, updateFeatureStage } from "../../src/core/feature";
 import { addPhase, updatePhaseStatus } from "../../src/core/phase";
 
 describe("addPhase — validation", () => {
@@ -107,11 +107,11 @@ describe("updatePhaseStatus", () => {
     const phase = await addPhase(db, featureId, "Phase 1");
 
     // Act
-    const updated = await updatePhaseStatus(db, featureId, phase.id, "in-progress");
+    const result = await updatePhaseStatus(db, featureId, phase.id, "in-progress");
 
     // Assert
-    expect(updated.id).toBe(phase.id);
-    expect(updated.status).toBe("in-progress");
+    expect(result.phase.id).toBe(phase.id);
+    expect(result.phase.status).toBe("in-progress");
   });
 
   it("sets startedAt when transitioning to in-progress", async () => {
@@ -122,11 +122,11 @@ describe("updatePhaseStatus", () => {
     expect(phase.startedAt).toBeNull();
 
     // Act
-    const updated = await updatePhaseStatus(db, featureId, phase.id, "in-progress");
+    const result = await updatePhaseStatus(db, featureId, phase.id, "in-progress");
 
     // Assert
-    expect(updated.startedAt).toBeTypeOf("number");
-    expect(updated.startedAt).toBeGreaterThan(0);
+    expect(result.phase.startedAt).toBeTypeOf("number");
+    expect(result.phase.startedAt).toBeGreaterThan(0);
   });
 
   it("does not overwrite startedAt if already set", async () => {
@@ -135,14 +135,14 @@ describe("updatePhaseStatus", () => {
     const featureId = await createFeature(db, "My Feature");
     const phase = await addPhase(db, featureId, "Phase 1");
     const first = await updatePhaseStatus(db, featureId, phase.id, "in-progress");
-    const originalStartedAt = first.startedAt;
+    const originalStartedAt = first.phase.startedAt;
 
     // Act — transition back then to in-progress again
     await updatePhaseStatus(db, featureId, phase.id, "review");
     const second = await updatePhaseStatus(db, featureId, phase.id, "in-progress");
 
     // Assert
-    expect(second.startedAt).toBe(originalStartedAt);
+    expect(second.phase.startedAt).toBe(originalStartedAt);
   });
 
   it("sets completedAt when transitioning to done", async () => {
@@ -153,11 +153,11 @@ describe("updatePhaseStatus", () => {
     expect(phase.completedAt).toBeNull();
 
     // Act
-    const updated = await updatePhaseStatus(db, featureId, phase.id, "done");
+    const result = await updatePhaseStatus(db, featureId, phase.id, "done");
 
     // Assert
-    expect(updated.completedAt).toBeTypeOf("number");
-    expect(updated.completedAt).toBeGreaterThan(0);
+    expect(result.phase.completedAt).toBeTypeOf("number");
+    expect(result.phase.completedAt).toBeGreaterThan(0);
   });
 
   it("does not set completedAt for non-done statuses", async () => {
@@ -167,10 +167,10 @@ describe("updatePhaseStatus", () => {
     const phase = await addPhase(db, featureId, "Phase 1");
 
     // Act
-    const updated = await updatePhaseStatus(db, featureId, phase.id, "review");
+    const result = await updatePhaseStatus(db, featureId, phase.id, "review");
 
     // Assert
-    expect(updated.completedAt).toBeNull();
+    expect(result.phase.completedAt).toBeNull();
   });
 
   it("throws when the feature does not exist", async () => {
@@ -207,5 +207,72 @@ describe("updatePhaseStatus", () => {
     await expect(updatePhaseStatus(db, featureId2, phase.id, "done")).rejects.toThrow(
       `Phase ${phase.id} does not belong to feature ${featureId2}`,
     );
+  });
+});
+
+describe("updatePhaseStatus — auto-advance stage development→review", () => {
+  it("advances feature stage to review when last phase is marked done in development", async () => {
+    // Regression: previously updatePhaseStatus did not auto-advance the feature stage.
+    // It should advance from 'development' to 'review' when all phases are done.
+    const db = await createTestDb();
+    const featureId = await createFeature(db, "My Feature");
+    await updateFeatureStage(db, featureId, "development");
+    const phase = await addPhase(db, featureId, "Phase 1");
+
+    const result = await updatePhaseStatus(db, featureId, phase.id, "done");
+
+    expect(result.stageAdvanced).toBe(true);
+    const feature = await db.query.features.findFirst({ where: { id: featureId } });
+    expect(feature!.stage).toBe("review");
+  });
+
+  it("returns stageAdvanced=false when marking a non-last phase done", async () => {
+    // Regression: should not advance when there are still non-done phases.
+    const db = await createTestDb();
+    const featureId = await createFeature(db, "My Feature");
+    await updateFeatureStage(db, featureId, "development");
+    const phase1 = await addPhase(db, featureId, "Phase 1");
+    await addPhase(db, featureId, "Phase 2");
+
+    const result = await updatePhaseStatus(db, featureId, phase1.id, "done");
+
+    expect(result.stageAdvanced).toBe(false);
+    const feature = await db.query.features.findFirst({ where: { id: featureId } });
+    expect(feature!.stage).toBe("development");
+  });
+
+  it("does not re-advance when feature is already in review", async () => {
+    // Regression: should not advance when feature stage is already 'review' (not 'development').
+    const db = await createTestDb();
+    const featureId = await createFeature(db, "My Feature");
+    await updateFeatureStage(db, featureId, "development");
+    const phase1 = await addPhase(db, featureId, "Phase 1");
+    const phase2 = await addPhase(db, featureId, "Phase 2");
+    // Advance to review by marking all phases done
+    await updatePhaseStatus(db, featureId, phase1.id, "done");
+    await updatePhaseStatus(db, featureId, phase2.id, "done");
+    // Now feature is in review; reset phase2 back to in-progress then done again
+    await updatePhaseStatus(db, featureId, phase2.id, "in-progress");
+
+    const result = await updatePhaseStatus(db, featureId, phase2.id, "done");
+
+    // Feature is already in review, not development, so stageAdvanced must be false
+    expect(result.stageAdvanced).toBe(false);
+    const feature = await db.query.features.findFirst({ where: { id: featureId } });
+    expect(feature!.stage).toBe("review");
+  });
+
+  it("does not advance when feature stage is planning (not development)", async () => {
+    // Regression: auto-advance should only trigger from 'development', not from other stages.
+    const db = await createTestDb();
+    const featureId = await createFeature(db, "My Feature");
+    // Feature starts in 'planning'
+    const phase = await addPhase(db, featureId, "Phase 1");
+
+    const result = await updatePhaseStatus(db, featureId, phase.id, "done");
+
+    expect(result.stageAdvanced).toBe(false);
+    const feature = await db.query.features.findFirst({ where: { id: featureId } });
+    expect(feature!.stage).toBe("planning");
   });
 });

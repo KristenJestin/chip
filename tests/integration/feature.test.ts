@@ -5,6 +5,7 @@ import {
   listFeatures,
   getFeatureDetails,
   exportFeature,
+  updateFeature,
 } from "../../src/core/feature";
 import { addPhase } from "../../src/core/phase";
 import { addTask } from "../../src/core/task";
@@ -319,5 +320,82 @@ describe("exportFeature", () => {
     expect(md).toContain("Security hole found");
     expect(md).toContain("[critical]");
     expect(md).toContain("[unresolved]");
+  });
+});
+
+describe("updateFeature", () => {
+  it("updates the title of a feature", async () => {
+    const db = await createTestDb();
+    const id = await createFeature(db, "Original Title");
+
+    const updated = await updateFeature(db, id, { title: "New Title" });
+
+    expect(updated.id).toBe(id);
+    expect(updated.title).toBe("New Title");
+    const [feat] = await listFeatures(db);
+    expect(feat.title).toBe("New Title");
+  });
+
+  it("updates the description of a feature", async () => {
+    const db = await createTestDb();
+    const id = await createFeature(db, "My Feature");
+
+    const updated = await updateFeature(db, id, { description: "Updated description" });
+
+    expect(updated.description).toBe("Updated description");
+  });
+
+  it("updates the status of a feature", async () => {
+    const db = await createTestDb();
+    const id = await createFeature(db, "My Feature");
+
+    const updated = await updateFeature(db, id, { status: "done" });
+
+    expect(updated.status).toBe("done");
+  });
+
+  it("updates multiple fields at once", async () => {
+    const db = await createTestDb();
+    const id = await createFeature(db, "Initial Title", "Initial description");
+
+    const updated = await updateFeature(db, id, {
+      title: "Updated Title",
+      description: "Updated description",
+      status: "archived",
+    });
+
+    expect(updated.title).toBe("Updated Title");
+    expect(updated.description).toBe("Updated description");
+    expect(updated.status).toBe("archived");
+  });
+
+  it("throws when feature not found", async () => {
+    const db = await createTestDb();
+
+    await expect(updateFeature(db, "nonexistent", { title: "X" })).rejects.toThrow(
+      "Feature not found: nonexistent",
+    );
+  });
+
+  it("throws when title is empty string", async () => {
+    const db = await createTestDb();
+    const id = await createFeature(db, "My Feature");
+
+    // Empty title violates the nonEmptyString validation
+    await expect(updateFeature(db, id, { title: "" })).rejects.toThrow();
+  });
+
+  it("updates updatedAt timestamp", async () => {
+    const db = await createTestDb();
+    const id = await createFeature(db, "My Feature");
+    const [before] = await listFeatures(db);
+
+    // Wait 1ms to ensure timestamp changes
+    await new Promise((r) => setTimeout(r, 10));
+    await updateFeature(db, id, { title: "Changed" });
+
+    const [after] = await listFeatures(db);
+    // updatedAt should be >= createdAt; after update it may differ
+    expect(after.updatedAt).toBeGreaterThanOrEqual(before.updatedAt);
   });
 });

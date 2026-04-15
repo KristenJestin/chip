@@ -1,125 +1,138 @@
 ---
-description: Mettre à jour la documentation technique après une feature chip
+description: Update technical documentation after a chip feature
 ---
 
-Tu es un développeur senior chargé de maintenir la documentation technique du projet. Tu vas analyser ce qui a changé dans le cadre de cette feature chip et mettre à jour la documentation en conséquence.
+You are a senior developer responsible for maintaining the project's technical documentation. You will analyze what changed in the context of this chip feature and update the documentation accordingly.
 
-**Attention à la langue :** tout le contenu produit est en français. Soigne les accents (é, è, ê, à, ù, ç, ô, î, û, etc.), les apostrophes typographiques, et la ponctuation. Un document mal orthographié n'est pas acceptable.
+**Language note:** all content produced is in English. Pay attention to spelling, punctuation, and clarity.
 
-## Feature cible
+## Target feature
 
-!`chip feature status "$1" 2>/dev/null || echo "ERREUR : feature chip introuvable."`
+!`chip feature status "$1" 2>/dev/null || echo "ERROR: chip feature not found."`
 
-## Critères d'acceptation en attente
+## Pending acceptance criteria
 
-!`chip criteria list "$1" --pending 2>/dev/null || echo "(aucun critère en attente)"`
+!`chip criteria list "$1" --pending 2>/dev/null || echo "(no pending criteria)"`
 
-## Détail complet de la feature
+## Full feature details
 
 !`chip feature export "$1" 2>/dev/null || echo ""`
 
-## Changements sur la branche
+## Changes on the branch
 
-!`git log --oneline $(git rev-list --max-parents=0 HEAD)..HEAD 2>/dev/null || echo "(historique git indisponible)"`
+!`git log --oneline $(git rev-list --max-parents=0 HEAD)..HEAD 2>/dev/null || echo "(git history unavailable)"`
 
 !`git diff $(git rev-list --max-parents=0 HEAD) HEAD -- . ':!docs/' 2>/dev/null || echo ""`
 
-## Documentation existante
+## Existing documentation
 
-!`find docs -name "*.md" 2>/dev/null | sort || echo "(aucun dossier docs/ trouvé — adapte le chemin au projet)"`
+!`find docs -name "*.md" 2>/dev/null | sort || echo "(no docs/ folder found — adapt the path to the project)"`
 
 ---
 
-## ÉTAPE 0 — DÉMARRAGE DE SESSION
+## STEP 0 — START SESSION
 
 ```bash
 chip session start <feature-id> docs
 ```
 
-Note le session-id.
+Note the session-id.
 
 ---
 
-## PROCESSUS
+## PROCESS
 
-### 1. Analyse des changements
+### 1. Analyze the changes
 
-En croisant le diff git et l'export chip, identifie précisément :
-- Les entités créées, modifiées ou supprimées (modèles, schémas, types associés).
-- Les règles métier nouvelles ou modifiées (statuts, transitions, conditions, comportements).
-- Les flux nouveaux ou modifiés (séquences entre modules, déclencheurs, effets de bord).
-- Les APIs ou interfaces publiques exposées ou modifiées.
-- Les éléments supprimés qui rendraient une section de doc obsolète.
+By cross-referencing the git diff and the chip export, identify precisely:
+- Entities created, modified, or deleted (models, schemas, associated types).
+- New or modified business rules (statuses, transitions, conditions, behaviors).
+- New or modified flows (sequences between modules, triggers, side effects).
+- Public APIs or interfaces exposed or modified.
+- Deleted elements that would make a documentation section obsolete.
 
-### 2. Décisions de mise à jour
+### 2. Update decisions
 
-Pour chaque élément identifié, détermine l'action à effectuer sur la documentation :
-- **Créer** un nouveau fichier si le sujet n'a pas de home logique existant.
-- **Mettre à jour** une section précise d'un fichier existant si le reste est toujours correct.
-- **Refactoriser** un fichier existant si du contenu est mal classé.
-- **Supprimer** un fichier si son sujet entier a disparu du code.
-- **Déplacer** du contenu entre fichiers si l'architecture l'exige.
+For each identified element, determine the action to perform on the documentation:
+- **Create** a new file if the subject has no existing logical home.
+- **Update** a specific section of an existing file if the rest is still correct.
+- **Refactor** an existing file if content is misclassified.
+- **Delete** a file if its entire subject has disappeared from the code.
+- **Move** content between files if the architecture requires it.
 
-Adapte l'architecture documentaire au projet courant. Convention recommandée si pas d'architecture existante :
+Adapt the documentation architecture to the current project. Recommended convention if no existing architecture:
 
 ```
 docs/
-├── README.md            ← index de navigation, maintenu automatiquement
-├── entities/            ← schémas de données, modèles, types
-├── metier/              ← règles métier, cycles de vie, statuts
-└── flux/                ← séquences entre modules (diagrammes Mermaid)
+├── README.md            ← navigation index, maintained automatically
+├── entities/            ← data schemas, models, types
+├── rules/               ← business rules, lifecycles, statuses
+└── flows/               ← sequences between modules (Mermaid diagrams)
 ```
 
-### 3. Exécution des mises à jour
+### 3. Execute updates
 
-Effectue toutes les modifications. Pour chaque fichier produit ou modifié :
-- Vérifie que chaque information provient directement du code source. Rien de spéculatif.
-- Vérifie la validité syntaxique des blocs Mermaid.
-- Vérifie que les accents et la ponctuation française sont corrects.
+Make all modifications. For each file produced or modified:
+- Verify that each piece of information comes directly from the source code. Nothing speculative.
+- Verify the syntactic validity of Mermaid blocks.
+- Verify that spelling and punctuation are correct.
 
-### 4. Mise à jour du README docs
+### 4. Update the docs README
 
-Après toutes les modifications, mets à jour `docs/README.md` (ou l'index docs du projet) pour qu'il reflète exactement l'état courant de la documentation.
+After all modifications, update `docs/README.md` (or the project's docs index) to reflect the current state of the documentation exactly.
 
 ---
 
-## ÉTAPE 5 — FINALISATION CHIP
+## STEP 5 — CHIP FINALIZATION
 
-Vérifie les critères d'acceptation liés à la documentation :
+Check acceptance criteria related to documentation:
 
 ```bash
 chip criteria list <feature-id> --pending
 ```
 
-Pour chaque critère de documentation satisfait :
+For each satisfied documentation criterion:
 
 ```bash
 chip criteria check <criteria-id> --source chip_docs
 ```
 
-Journaliser et clore :
+Log and close:
 
 ```bash
-chip log add <feature-id> "Documentation mise à jour : <liste courte des fichiers créés/modifiés>." --source chip_docs
+chip log add <feature-id> "Documentation updated: <short list of created/modified files>." --source chip_docs
 
-chip session end <session-id> "Documentation : <N> fichiers créés/mis à jour. <résumé>"
+chip session end <session-id> "Documentation: <N> files created/updated. <summary>"
 ```
 
-Si tous les critères sont satisfaits et aucun finding `high` non résolu :
+If all criteria are satisfied and no unresolved `high` finding:
 
 ```bash
 chip feature stage <feature-id> released
 chip log add <feature-id> "Feature released." --source chip_docs
 ```
 
-Sinon, annonce dans le chat les critères ou findings qui bloquent le passage en `released`.
+Otherwise, announce in the chat the criteria or findings blocking the transition to `released`.
 
 ---
 
-## RÈGLES
+## BEHAVIOR
 
-- Tout le contenu est en français. Le code, les noms de champs, les routes et les identifiants techniques restent en anglais.
-- Les accents, apostrophes et majuscules doivent être corrects. Relis chaque titre et chaque phrase.
-- Les diagrammes Mermaid doivent être valides syntaxiquement. Préfère un diagramme simple et juste à un diagramme riche et cassé.
-- Un fichier de documentation ne contient que ce qui est vérifié dans le code. Rien de spéculatif.
-- Si un sujet est ambigu (métier ou flux ?), tranche selon ce qui apporte le plus de valeur au lecteur.
+### Think Before Coding
+Before writing or modifying any documentation file, cross-reference the git diff and the chip export to confirm what actually changed. If it is unclear which behavior a code change implements or which documentation section it affects, stop and verify in the source code — do not document assumptions.
+
+### Simplicity First
+Write only the documentation that the feature change requires. Do not restructure the entire documentation architecture, add speculative sections, or document behaviors that are not yet implemented. One accurate sentence is better than a paragraph of speculation.
+
+### Surgical Changes
+Update only the sections and files that are directly affected by the changes in this feature. If you notice outdated content in unrelated sections while working, add a chip finding — do not silently refactor unrelated documentation.
+
+---
+
+## RULES
+
+- All content is in English. Code, field names, routes and technical identifiers remain as-is.
+- Spelling, punctuation and capitalization must be correct. Re-read every title and sentence.
+- Mermaid diagrams must be syntactically valid. Prefer a simple and correct diagram over a rich and broken one.
+- A documentation file contains only what is verified in the code. Nothing speculative.
+- If a subject is ambiguous (business rules or flows?), decide based on what brings most value to the reader.

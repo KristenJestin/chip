@@ -1,8 +1,15 @@
 {
   "name": "@netsirk/chip",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "CLI for AI coding agents — structured persistence for features, phases, tasks, sessions, findings and acceptance criteria backed by SQLite",
-  "keywords": ["cli", "agent", "ai", "task-management", "sqlite", "opencode"],
+  "keywords": [
+    "cli",
+    "agent",
+    "ai",
+    "task-management",
+    "sqlite",
+    "opencode"
+  ],
   "license": "ISC",
   "author": "netsirk",
   "engines": {
@@ -26,10 +33,6 @@
     "build": "tsup && rm -rf dist/migrations && cp -r drizzle dist/migrations && cp -r src/templates dist/templates",
     "build:win": "tsup && rm -rf dist/migrations && cp -R drizzle dist/migrations && cp -R src/templates dist/templates",
     "prepublishOnly": "bun run build",
-    "release": "bun run typecheck && bun run test && git push --follow-tags && npm publish",
-    "release:patch": "npm version patch && bun run release",
-    "release:minor": "npm version minor && bun run release",
-    "release:major": "npm version major && bun run release",
     "install:local": "bun run build && bun link @netsirk/chip",
     "install:local:win": "bun run build:win && bun link @netsirk/chip",
     "chip": "bun src/cli/index.ts --",
@@ -53,6 +56,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.30.0",
     "@opencode-ai/plugin": "^1.4.3",
     "@types/node": "^25.6.0",
     "drizzle-kit": "^1.0.0-beta.21",

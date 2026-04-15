@@ -16,6 +16,7 @@ export function registerCriteriaCommands(program: Command): void {
     .argument("<feature-id>", "Feature ID")
     .argument("<description>", "Criterion description")
     .option("--phase <id>", "Phase ID to scope this criterion to")
+    .option("--force", "Override stage guard (allow adding criterion in review/documentation/released)")
     .action(async (featureId, description, options) => {
       const db = await getDb();
       const phaseId = options.phase != null ? parseInt(options.phase, 10) : undefined;
@@ -23,7 +24,7 @@ export function registerCriteriaCommands(program: Command): void {
         die(`Invalid phase ID: ${options.phase}`);
       }
       try {
-        const criterion = await addCriterion(db, featureId, description, { phaseId });
+        const criterion = await addCriterion(db, featureId, description, { phaseId, force: options.force });
         console.log(`Added criterion ${criterion.id} to ${featureId}`);
       } catch (err) {
         die(errMsg(err));

@@ -20,6 +20,8 @@ export type PhaseTaskStatus = (typeof VALID_TASK_STATUSES)[number];
 export const VALID_TASK_TYPES = ["feature", "fix", "docs", "test"] as const;
 export type TaskType = (typeof VALID_TASK_TYPES)[number];
 
+const ADVANCED_STAGES = new Set(["review", "documentation", "released"]);
+
 // ── Services ──────────────────────────────────────────────────────────────────
 
 export async function addTask(
@@ -28,7 +30,7 @@ export async function addTask(
   phaseId: number,
   title: string,
   description?: string,
-  options?: { type?: TaskType; parentTaskId?: number },
+  options?: { type?: TaskType; parentTaskId?: number; force?: boolean },
 ): Promise<Task> {
   validate(AddTaskInputV2, {
     featureId,
@@ -40,6 +42,15 @@ export async function addTask(
   });
   await assertFeatureExists(db, featureId);
   await assertPhaseExists(db, phaseId, featureId);
+
+  if (!options?.force) {
+    const feature = await db.query.features.findFirst({ where: { id: featureId } });
+    if (feature && ADVANCED_STAGES.has(feature.stage)) {
+      throw new Error(
+        `Cannot add task: feature is in '${feature.stage}' stage. Use --force to override.`,
+      );
+    }
+  }
 
   const order = await nextTaskOrder(db, phaseId);
   const now = nowUnix();

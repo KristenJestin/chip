@@ -7,16 +7,27 @@ import { nowUnix } from "../utils/time";
 import { validate } from "./validate";
 import { AddCriterionInput, CheckCriterionInput, ListCriteriaInput } from "./schemas";
 
+const ADVANCED_STAGES = new Set(["review", "documentation", "released"]);
+
 // ── Services ──────────────────────────────────────────────────────────────────
 
 export async function addCriterion(
   db: Db,
   featureId: string,
   description: string,
-  options?: { phaseId?: number },
+  options?: { phaseId?: number; force?: boolean },
 ): Promise<Criterion> {
   validate(AddCriterionInput, { featureId, description, phaseId: options?.phaseId });
   await assertFeatureExists(db, featureId);
+
+  if (!options?.force) {
+    const feature = await db.query.features.findFirst({ where: { id: featureId } });
+    if (feature && ADVANCED_STAGES.has(feature.stage)) {
+      throw new Error(
+        `Cannot add criterion: feature is in '${feature.stage}' stage. Use --force to override.`,
+      );
+    }
+  }
 
   const now = nowUnix();
   const [inserted] = await db

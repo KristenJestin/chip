@@ -1,0 +1,50 @@
+name: Release
+
+# Triggered on every push to main.
+# When changesets are present, this workflow opens (or updates) a
+# "Version Packages" PR via changesets/action.  When that PR is merged,
+# the action publishes the package to npm automatically.
+#
+# Required secrets (Settings > Secrets > Actions):
+#   NPM_TOKEN — npm automation token with publish access to @netsirk/chip
+
+on:
+  push:
+    branches:
+      - main
+
+# Write permissions are required so that changesets/action can:
+#   - bump package versions and commit them (contents: write)
+#   - create / update the "Version Packages" pull request (pull-requests: write)
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history is needed for changesets to detect which packages
+          # changed since the last release tag.
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Create release PR or publish
+        uses: changesets/action@v1
+        with:
+          # Build the package before publishing to npm.
+          # chip uses tsup; the build script also copies migrations and templates.
+          publish: bun run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

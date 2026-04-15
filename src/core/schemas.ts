@@ -41,6 +41,14 @@ export const UpdateFeatureStatusInput = z.object({
 });
 export type UpdateFeatureStatusInput = z.infer<typeof UpdateFeatureStatusInput>;
 
+export const UpdateFeatureInput = z.object({
+  featureId: nonEmptyString,
+  title: nonEmptyString.optional(),
+  description: z.string().optional(),
+  status: featureStatus.optional(),
+});
+export type UpdateFeatureInput = z.infer<typeof UpdateFeatureInput>;
+
 export const UpdateFeatureStageInput = z.object({
   featureId: nonEmptyString,
   stage: featureStage,
