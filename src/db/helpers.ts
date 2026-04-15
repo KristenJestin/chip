@@ -2,6 +2,17 @@ import { eq, max } from "drizzle-orm";
 import { type Db } from "./client";
 import { phases, tasks } from "./schema";
 
+// ── Stage guard ───────────────────────────────────────────────────────────────
+
+/**
+ * Feature stages that are considered "advanced" (past development).
+ * Structural mutations (addPhase, addTask, addCriterion) are blocked on these
+ * stages unless the caller passes force=true.
+ *
+ * Single source of truth — imported by all core services that enforce the guard.
+ */
+export const ADVANCED_STAGES = new Set(["review", "documentation", "released"]);
+
 // ── Feature guards ────────────────────────────────────────────────────────────
 
 /**

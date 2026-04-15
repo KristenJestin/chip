@@ -10,10 +10,12 @@ export function criteriaTools(db: Db): Record<string, ToolDefinition> {
         featureId: tool.schema.string().min(1),
         description: tool.schema.string().min(1),
         phaseId: tool.schema.number().int().positive().optional(),
+        force: tool.schema.boolean().optional(),
       },
       async execute(args) {
         const criterion = await addCriterion(db, args.featureId, args.description, {
           phaseId: args.phaseId,
+          force: args.force ?? false,
         });
         return JSON.stringify(criterion);
       },

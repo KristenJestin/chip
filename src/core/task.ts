@@ -7,6 +7,7 @@ import {
   assertPhaseExists,
   assertTaskExists,
   nextTaskOrder,
+  ADVANCED_STAGES,
 } from "../db/helpers";
 import { nowUnix } from "../utils/time";
 import { validate } from "./validate";
@@ -28,7 +29,7 @@ export async function addTask(
   phaseId: number,
   title: string,
   description?: string,
-  options?: { type?: TaskType; parentTaskId?: number },
+  options?: { type?: TaskType; parentTaskId?: number; force?: boolean },
 ): Promise<Task> {
   validate(AddTaskInputV2, {
     featureId,
@@ -38,7 +39,20 @@ export async function addTask(
     type: options?.type,
     parentTaskId: options?.parentTaskId,
   });
-  await assertFeatureExists(db, featureId);
+
+  // Single query: existence check + stage guard in one round-trip
+  const feature = await db.query.features.findFirst({
+    where: { id: featureId },
+    columns: { id: true, stage: true },
+  });
+  if (!feature) throw new Error(`Feature not found: ${featureId}`);
+
+  if (!options?.force && ADVANCED_STAGES.has(feature.stage)) {
+    throw new Error(
+      `Cannot add task: feature is in '${feature.stage}' stage. Use --force to override.`,
+    );
+  }
+
   await assertPhaseExists(db, phaseId, featureId);
 
   const order = await nextTaskOrder(db, phaseId);

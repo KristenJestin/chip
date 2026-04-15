@@ -13,11 +13,13 @@ export function taskTools(db: Db): Record<string, ToolDefinition> {
         description: tool.schema.string().optional(),
         type: tool.schema.enum(["feature", "fix", "docs", "test"]).optional(),
         parentTaskId: tool.schema.number().int().positive().optional(),
+        force: tool.schema.boolean().optional(),
       },
       async execute(args) {
         const task = await addTask(db, args.featureId, args.phaseId, args.title, args.description, {
           type: args.type,
           parentTaskId: args.parentTaskId,
+          force: args.force ?? false,
         });
         return JSON.stringify(task);
       },

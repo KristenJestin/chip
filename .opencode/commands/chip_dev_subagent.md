@@ -155,6 +155,19 @@ Do not include narrative prose in the final message — only the JSON block. The
 
 ---
 
+## BEHAVIOR
+
+### Think Before Coding
+Before writing any code, re-read the task description and the existing code in the relevant files. If the task is ambiguous or the approach has significant tradeoffs, stop and surface the question — do not proceed with a silent assumption. When multiple approaches exist, briefly state the options and the chosen direction before implementing.
+
+### Simplicity First
+Write the minimum code that solves the task. Do not add abstractions, configuration options, or "future-proofing" that the task description does not ask for. If the simplest solution works, that is the right solution.
+
+### Surgical Changes
+Only touch the files and lines the task requires. If you notice unrelated bugs or improvements while working, do not fix them silently — add a chip finding instead and stay focused on the task scope.
+
+---
+
 ## RULES
 
 - Implement only what the task specifies. No over-engineering, no unrequested features.

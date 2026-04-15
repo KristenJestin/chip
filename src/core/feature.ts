@@ -11,6 +11,7 @@ import {
   GetFeatureStatusInput,
   ExportFeatureInput,
   UpdateFeatureStageInput,
+  UpdateFeatureInput,
 } from "./schemas";
 
 export const STAGE_ORDER = [
@@ -233,5 +234,26 @@ export async function updateFeatureStage(
     .returning()
     .all();
   if (!updated) throw new Error("Failed to update feature stage");
+  return updated;
+}
+
+export async function updateFeature(
+  db: Db,
+  featureId: string,
+  updates: { title?: string; description?: string; status?: "active" | "done" | "archived" },
+): Promise<Feature> {
+  validate(UpdateFeatureInput, { featureId, ...updates });
+
+  const existing = await db.query.features.findFirst({ where: { id: featureId } });
+  if (!existing) throw new Error(`Feature not found: ${featureId}`);
+
+  const now = nowUnix();
+  const [updated] = await db
+    .update(features)
+    .set({ ...updates, updatedAt: now })
+    .where(eq(features.id, featureId))
+    .returning()
+    .all();
+  if (!updated) throw new Error("Failed to update feature");
   return updated;
 }

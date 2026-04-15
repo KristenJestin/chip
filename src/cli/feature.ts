@@ -12,6 +12,7 @@ import {
   getFeatureDetails,
   exportFeature,
   updateFeatureStage,
+  updateFeature,
 } from "../core/feature";
 import { getFeatureDependencyMap } from "../core/dependency";
 
@@ -221,6 +222,32 @@ export function registerFeatureCommands(program: Command): void {
           options.force ?? false,
         );
         console.log(`Feature ${feature.id} stage → ${feature.stage}`);
+      } catch (err) {
+        die(errMsg(err));
+      }
+    });
+
+  // ── feature update ─────────────────────────────────────────────────────────
+  featureCmd
+    .command("update")
+    .description("Update editable fields on a feature")
+    .argument("<feature-id>", "Feature ID")
+    .option("--title <title>", "New title")
+    .option("--description <desc>", "New description")
+    .option("--status <status>", "New status (active|done|archived)")
+    .action(async (featureId, options) => {
+      const { title, description, status } = options;
+      if (title === undefined && description === undefined && status === undefined) {
+        die("At least one of --title, --description, or --status must be provided");
+      }
+      const db = await getDb();
+      try {
+        const feature = await updateFeature(db, featureId, {
+          ...(title !== undefined ? { title } : {}),
+          ...(description !== undefined ? { description } : {}),
+          ...(status !== undefined ? { status: status as "active" | "done" | "archived" } : {}),
+        });
+        console.log(`Updated feature: ${feature.id}`);
       } catch (err) {
         die(errMsg(err));
       }

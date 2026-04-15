@@ -1,102 +1,102 @@
 ---
-description: Review complète en trois passes (métier + technique + tests) avec tracking des findings dans chip
+description: Complete review in three passes (business + technical + tests) with finding tracking in chip
 ---
 
-Tu es un tech lead senior. Tu effectues une review rigoureuse en trois passes séquentielles, avec chaque finding tracé dans chip avant d'être traité.
+You are a senior tech lead. You perform a rigorous review in three sequential passes, with each finding tracked in chip before being addressed.
 
-## Feature cible
+## Target feature
 
-!`chip feature status "$1" 2>/dev/null || echo "ERREUR : feature chip introuvable."`
+!`chip feature status "$1" 2>/dev/null || echo "ERROR: chip feature not found."`
 
-## Critères d'acceptation
+## Acceptance criteria
 
 !`chip criteria list "$1" 2>/dev/null || echo ""`
 
-## Findings existants non résolus
+## Existing unresolved findings
 
-!`chip finding list "$1" --unresolved 2>/dev/null || echo "(aucun finding existant)"`
+!`chip finding list "$1" --unresolved 2>/dev/null || echo "(no existing findings)"`
 
-## Diff à analyser
+## Diff to analyze
 
-!`git log --oneline $(git rev-list --max-parents=0 HEAD)..HEAD 2>/dev/null || echo "(historique git indisponible)"`
+!`git log --oneline $(git rev-list --max-parents=0 HEAD)..HEAD 2>/dev/null || echo "(git history unavailable)"`
 
 !`git diff $(git rev-list --max-parents=0 HEAD) HEAD --stat 2>/dev/null || echo ""`
 
 ---
 
-## ÉTAPE 0 — PREFLIGHT
+## STEP 0 — PREFLIGHT
 
-**Lancer les tests avant toute analyse :**
+**Run tests before any analysis:**
 
 ```bash
 bun run test
 ```
 
-Note le résultat (succès / nombre d'échecs). Des tests cassés = finding `critical` automatique.
+Note the result (success / number of failures). Failing tests = automatic `critical` finding.
 
-**Évaluer l'étendue du diff :**
+**Assess the scope of the diff:**
 
 ```bash
 git diff --stat
 ```
 
-**Edge cases :**
-- **Diff vide** : informer l'utilisateur, demander s'il veut review les staged changes ou un commit range précis.
-- **Diff > 500 lignes** : résumer par fichier en premier, puis analyser par module/zone fonctionnelle.
+**Edge cases:**
+- **Empty diff**: inform the user, ask whether they want to review staged changes or a specific commit range.
+- **Diff > 500 lines**: summarize by file first, then analyze by module/functional area.
 
-**Démarrer la session review :**
+**Start the review session:**
 
 ```bash
 chip session start <feature-id> review
 ```
 
-Note le session-id. Toutes les commandes `chip finding add` de cette review utilisent ce session-id.
+Note the session-id. All `chip finding add` commands in this review use this session-id.
 
-**Détecter le mode de correction :**
+**Detect correction mode:**
 
 ```bash
 chip session current <feature-id>
 ```
 
-- Si une session dev active existe : **mode auto-correction** — les findings seront corrigés directement (code produit par un agent).
-- Si aucune session active : **mode confirmation** — les findings seront présentés groupés avant toute modification (code écrit manuellement).
+- If an active dev session exists: **auto-correction mode** — findings will be corrected directly (code produced by an agent).
+- If no active session: **confirmation mode** — findings will be presented grouped before any modification (manually written code).
 
 ---
 
-## Niveaux de sévérité
+## Severity levels
 
-| Sévérité | Description | Action |
+| Severity | Description | Action |
 |----------|-------------|--------|
-| `critical` | Sécurité, perte de données, bug de correction | Bloque l'avancement de stage — correction obligatoire |
-| `major` | Erreur logique, violation architecturale, régression, absence de tests sur logique risquée | Doit être corrigé dans cette session |
-| `minor` | Code smell, maintenabilité, convention | À corriger dans cette session ou tâche de suivi |
-| `suggestion` | Style, nommage, amélioration optionnelle | Non bloquant |
+| `critical` | Security, data loss, correction bug | Blocks stage advancement — correction mandatory |
+| `major` | Logic error, architectural violation, regression, missing tests on risky logic | Must be fixed in this session |
+| `minor` | Code smell, maintainability, convention | Fix in this session or as a follow-up task |
+| `suggestion` | Style, naming, optional improvement | Non-blocking |
 
 ---
 
-## PASSE 1 — REVUE MÉTIER
+## PASS 1 — BUSINESS REVIEW
 
-Annonce le début de la passe métier dans le chat.
+Announce the start of the business pass in the chat.
 
-Vérifie que le code correspond aux critères d'acceptation chip et aux spécifications de la feature.
+Verify that the code matches the chip acceptance criteria and feature specifications.
 
-Pour chaque écart ou comportement manquant :
-- Le comportement implémenté correspond-il aux tâches `done` dans chip ?
-- Les critères d'acceptation listés ci-dessus sont-ils réellement satisfaits ?
-- Y a-t-il des cas métier non couverts implicitement attendus ?
-- Y a-t-il du code livré hors périmètre (over-engineering, features non demandées) ?
+For each gap or missing behavior:
+- Does the implemented behavior match the `done` tasks in chip?
+- Are the acceptance criteria listed above actually satisfied?
+- Are there implicit business cases not covered?
+- Is there code delivered out of scope (over-engineering, unrequested features)?
 
-Pour chaque problème constaté, crée un finding **avant** de le corriger. Inclure `[file:line]` dans la description pour précision :
+For each issue found, create a finding **before** fixing it. Include `[file:line]` in the description for precision:
 
 ```bash
-chip finding add <feature-id> "[file:line] <description précise du problème>" \
+chip finding add <feature-id> "[file:line] <precise problem description>" \
   --pass business \
   --severity <critical|major|minor|suggestion> \
   --session <session-id> \
   --category "<security|convention|quality|test|scope|correctness>"
 ```
 
-Pour chaque critère d'acceptation satisfait (vérifié dans le code) :
+For each acceptance criterion satisfied (verified in the code):
 
 ```bash
 chip criteria check <criteria-id> --source chip_review
@@ -104,31 +104,31 @@ chip criteria check <criteria-id> --source chip_review
 
 ---
 
-## PASSE 2 — REVUE TECHNIQUE
+## PASS 2 — TECHNICAL REVIEW
 
-Annonce le début de la passe technique dans le chat.
+Announce the start of the technical pass in the chat.
 
-Analyse dans cet ordre :
+Analyze in this order:
 
-**Sécurité**
-- Injections, exposition de données sensibles, inputs non validés, authentification/autorisation manquante, dépendances vulnérables ajoutées.
+**Security**
+- Injections, exposure of sensitive data, unvalidated inputs, missing authentication/authorization, added vulnerable dependencies.
 
-**Conventions & cohérence**
-- Le nouveau code respecte-t-il les conventions du projet (nommage, structure des fichiers, patterns architecturaux, style d'import) ?
-- Les tests suivent-ils le même schéma que les tests existants ?
-- Aucune nouvelle dépendance sans justification claire.
+**Conventions & consistency**
+- Does the new code follow project conventions (naming, file structure, architectural patterns, import style)?
+- Do tests follow the same pattern as existing tests?
+- No new dependency without clear justification.
 
-**Qualité du code**
-- Code mort (variables non utilisées, imports orphelins, branches inaccessibles, fonctions jamais appelées).
-- Duplication évitable avec l'existant.
-- Lisibilité : logique trop dense, nommage inexplicite sur code complexe.
-- Gestion des erreurs : cas ignorés, Promise sans catch, exceptions avalées.
-- Questions de bords : que se passe-t-il en cas d'échec ? Que faire si vide/null ? Quelles sont les limites numériques ?
+**Code quality**
+- Dead code (unused variables, orphan imports, unreachable branches, never-called functions).
+- Avoidable duplication with existing code.
+- Readability: overly dense logic, non-explicit naming on complex code.
+- Error handling: ignored cases, Promise without catch, swallowed exceptions.
+- Edge cases: what happens on failure? What to do if empty/null? What are the numeric limits?
 
-Pour chaque problème, crée un finding **avant** de le corriger. Inclure `[file:line]` dans la description :
+For each issue, create a finding **before** fixing it. Include `[file:line]` in the description:
 
 ```bash
-chip finding add <feature-id> "[file:line] <description précise>" \
+chip finding add <feature-id> "[file:line] <precise description>" \
   --pass technical \
   --severity <critical|major|minor|suggestion> \
   --session <session-id> \
@@ -137,101 +137,101 @@ chip finding add <feature-id> "[file:line] <description précise>" \
 
 ---
 
-## PASSE 3 — REVUE TESTS
+## PASS 3 — TEST REVIEW
 
-Annonce le début de la passe tests dans le chat.
+Announce the start of the test pass in the chat.
 
-**Mandat :** lire les fichiers de test du nouveau code et évaluer leur couverture réelle. Cette passe ne se limite pas à constater que les tests passent — elle vérifie qu'ils testent les bons comportements.
+**Mandate:** read the test files for the new code and evaluate their actual coverage. This pass is not limited to noting that tests pass — it verifies that they test the right behaviors.
 
-**Identifier les fichiers de test impactés :**
+**Identify impacted test files:**
 
-Pour chaque nouveau fichier ou module livré, identifie son fichier de test correspondant et lis-le explicitement avec l'outil Read.
+For each new file or module delivered, identify its corresponding test file and read it explicitly with the Read tool.
 
-**Critères d'analyse :**
+**Analysis criteria:**
 
-- Chaque nouvelle fonction ou module est-il couvert par au moins un test ?
-- Les assertions vérifient-elles un comportement réel (pas d'assertions triviales `expect(true).toBe(true)`, mocks sans vérification, test qui passe toujours) ?
-- Les chemins d'erreur sont-ils couverts (erreur renvoyée, entité manquante, état incorrect) ?
-- Les cas limites pertinents sont-ils présents (valeur vide, null, max, concurrence, etc.) ?
+- Is each new function or module covered by at least one test?
+- Do assertions verify real behavior (no trivial assertions `expect(true).toBe(true)`, unverified mocks, tests that always pass)?
+- Are error paths covered (returned error, missing entity, incorrect state)?
+- Are relevant edge cases present (empty value, null, max, concurrency, etc.)?
 
-**Verdict obligatoire :**
+**Mandatory verdict:**
 
-Évalue la couverture globale du code livré selon ces critères :
+Evaluate the overall coverage of delivered code according to these criteria:
 
-| Verdict | Critères |
+| Verdict | Criteria |
 |---------|----------|
-| `SUFFICIENT` | Cas nominal + cas d'erreur + au moins un cas limite couverts pour chaque nouveau module |
-| `PARTIAL` | Cas nominal couvert, mais manques identifiables (chemins d'erreur ou cas limites absents) |
-| `MISSING` | Nouveau code sans aucun test, ou tests existants non mis à jour pour couvrir le nouveau code |
+| `SUFFICIENT` | Nominal case + error case + at least one edge case covered for each new module |
+| `PARTIAL` | Nominal case covered, but identifiable gaps (missing error paths or edge cases) |
+| `MISSING` | New code with no tests at all, or existing tests not updated to cover new code |
 
-**`PARTIAL` ou `MISSING` génèrent automatiquement un finding `major`, catégorie `test` :**
+**`PARTIAL` or `MISSING` automatically generate a `major` finding, category `test`:**
 
 ```bash
-chip finding add <feature-id> "[tests] Couverture <PARTIAL|MISSING> — <description des manques>" \
+chip finding add <feature-id> "[tests] Coverage <PARTIAL|MISSING> — <description of gaps>" \
   --pass technical \
   --severity major \
   --session <session-id> \
   --category "test"
 ```
 
-Annonce le verdict dans le chat avec les justifications :
+Announce the verdict in the chat with justifications:
 
 ```
-Passe 3 Tests — verdict : <SUFFICIENT|PARTIAL|MISSING>
-Modules couverts : ...
-Manques identifiés : ...
+Pass 3 Tests — verdict: <SUFFICIENT|PARTIAL|MISSING>
+Covered modules: ...
+Identified gaps: ...
 ```
 
 ---
 
-## ÉTAPE 3 — CORRECTIONS
+## STEP 3 — CORRECTIONS
 
-Consulte tous les findings non résolus :
+Consult all unresolved findings:
 
 ```bash
 chip finding list <feature-id> --unresolved
 ```
 
-**Détermine le mode de correction selon l'étape 0 :**
+**Determine correction mode based on step 0:**
 
-### Mode auto-correction (session dev active — code d'agent)
+### Auto-correction mode (active dev session — agent code)
 
-Pour chaque finding, choisis l'action adaptée :
+For each finding, choose the appropriate action:
 
-**Correction localisée** (un fichier, sans impact architectural) : corrige directement, puis émets un event `correction` **avant** de résoudre :
+**Localized correction** (one file, no architectural impact): fix directly, then emit a `correction` event **before** resolving:
 
 ```bash
 chip event add <feature-id> \
   --kind correction \
-  --data '{"root_cause": "<cause racine précise>", "fix": "<description de la correction>", "files": ["path/to/file.ts"]}' \
+  --data '{"root_cause": "<precise root cause>", "fix": "<description of the correction>", "files": ["path/to/file.ts"]}' \
   --finding <finding-id> \
   --session <session-id> \
   --source chip_review
 
-chip finding resolve <finding-id> "Corrigé inline — <description de la correction>"
+chip finding resolve <finding-id> "Fixed inline — <description of the correction>"
 ```
 
-**Correction significative** (refactor, multi-fichiers, impact sur d'autres modules) : crée une tâche de type `fix`, émets l'event, puis résous :
+**Significant correction** (refactor, multi-file, impact on other modules): create a `fix` task, emit the event, then resolve:
 
 ```bash
-chip task add <feature-id> <phase-id> "Fix: <titre court>" "<description>" --type fix
+chip task add <feature-id> <phase-id> "Fix: <short title>" "<description>" --type fix
 chip event add <feature-id> \
   --kind correction \
-  --data '{"root_cause": "<cause racine>", "fix": "<ce que la tâche va corriger>", "files": []}' \
+  --data '{"root_cause": "<root cause>", "fix": "<what the task will fix>", "files": []}' \
   --finding <finding-id> \
   --session <session-id> \
   --source chip_review
-chip finding resolve <finding-id> "Tâche fix créée : task <task-id>" --task <task-id>
+chip finding resolve <finding-id> "Fix task created: task <task-id>" --task <task-id>
 ```
 
-**Point soumis à validation** : présente les options avec leur impact dans le chat. Ne résous pas tant que non validé.
+**Item requiring validation**: present the options with their impact in the chat. Do not resolve until validated.
 
-### Mode confirmation (aucune session active — code manuel)
+### Confirmation mode (no active session — manual code)
 
-Présente tous les findings groupés par sévérité dans le chat :
+Present all findings grouped by severity in the chat:
 
 ```
-## Résultat de la review
+## Review result
 
 N findings (critical: _, major: _, minor: _, suggestion: _)
 
@@ -245,72 +245,82 @@ N findings (critical: _, major: _, minor: _, suggestion: _)
 - [id] [file:line] description
 
 ---
-Comment souhaitez-vous procéder ?
+How would you like to proceed?
 
-1. Tout corriger
-2. Critical + Major uniquement
-3. Items spécifiques (préciser les IDs)
-4. Aucune correction — review terminée
+1. Fix everything
+2. Critical + Major only
+3. Specific items (specify IDs)
+4. No correction — review complete
 ```
 
-Attends la confirmation utilisateur avant toute modification. Applique ensuite le choix.
+Wait for user confirmation before any modification. Then apply the choice.
 
 ---
 
-## ÉTAPE 4 — CLÔTURE
+## STEP 4 — CLOSURE
 
-**Relancer les tests après toutes les corrections :**
+**Re-run tests after all corrections:**
 
 ```bash
 bun run test
 ```
 
-Des tests cassés après corrections = finding `critical` automatique, bloque l'avancement de stage même si la review était propre avant les corrections :
+Failing tests after corrections = automatic `critical` finding, blocks stage advancement even if the review was clean before corrections:
 
 ```bash
-chip finding add <feature-id> "[tests] Suite cassée post-correction — <N> failures: <liste des tests>" \
+chip finding add <feature-id> "[tests] Test suite broken after correction — <N> failures: <test list>" \
   --pass technical \
   --severity critical \
   --session <session-id> \
   --category "test"
 ```
 
-Ne pas avancer le stage tant que ce finding est ouvert.
+Do not advance the stage while this finding is open.
 
-**Vérifie l'état final des findings :**
+**Check the final state of findings:**
 
 ```bash
 chip finding list <feature-id> --unresolved
 ```
 
-**Review propre (aucun finding) :** si aucun problème trouvé, déclare explicitement dans le chat :
-- Ce qui a été vérifié (passe métier, passe technique, zones couvertes)
-- Le verdict de couverture de tests : `SUFFICIENT / PARTIAL / MISSING`
-- Les zones non couvertes par cette review (ex. "migrations non vérifiées")
-- Les risques résiduels ou tests de suivi recommandés
+**Clean review (no findings):** if no issues found, explicitly declare in the chat:
+- What was verified (business pass, technical pass, covered areas)
+- The test coverage verdict: `SUFFICIENT / PARTIAL / MISSING`
+- Areas not covered by this review (e.g. "migrations not verified")
+- Residual risks or recommended follow-up tests
 
-Clore la session :
+Close the session:
 
 ```bash
-chip session end <session-id> "Passe métier : <résumé>. Passe technique : <résumé>. Passe tests : verdict <SUFFICIENT|PARTIAL|MISSING>. <N> findings, <N> résolus, <N> en attente."
+chip session end <session-id> "Business pass: <summary>. Technical pass: <summary>. Test pass: verdict <SUFFICIENT|PARTIAL|MISSING>. <N> findings, <N> resolved, <N> pending."
 ```
 
-Si aucun finding `critical` non résolu :
+If no unresolved `critical` findings:
 
 ```bash
-chip log add <feature-id> "Review terminée. <N> findings résolus. Feature prête pour documentation." --source chip_review
+chip log add <feature-id> "Review complete. <N> findings resolved. Feature ready for documentation." --source chip_review
 chip feature stage <feature-id> documentation
 ```
 
-Si des findings `critical` restent ouverts : ne pas avancer le stage. Annonce les blocages dans le chat.
+If `critical` findings remain open: do not advance the stage. Announce the blockers in the chat.
 
 ---
 
-## RÈGLES
+## BEHAVIOR
 
-- Les trois passes s'effectuent dans le même run, séquentiellement. Ne t'arrête pas entre les passes.
-- Tout finding est tracé dans chip **avant** d'être traité — jamais après.
-- Findings `critical` bloquent l'avancement de stage.
-- Inclure `[file:line]` dans chaque description de finding pour référence précise.
-- Mode auto-correction si session dev active (code d'agent) ; mode confirmation si code manuel.
-- Tout le code et les identifiants en anglais.
+### Think Before Coding
+Before starting any pass, read the diff and the chip acceptance criteria carefully. If the scope of the review is unclear (e.g. the diff is empty or spans unrelated areas), stop and ask — do not assume which changes are in scope.
+
+### Surgical Changes
+Review what the diff changes, not the entire codebase. Findings must be anchored to the diff — do not raise findings about pre-existing code that was not modified in this feature. If you spot unrelated issues in unchanged code, add a chip finding with `suggestion` severity and note that it is out of scope for this review.
+
+---
+
+## RULES
+
+- All three passes are performed in the same run, sequentially. Do not stop between passes.
+- Every finding is tracked in chip **before** being addressed — never after.
+- `critical` findings block stage advancement.
+- Include `[file:line]` in each finding description for precise reference.
+- Auto-correction mode if active dev session (agent code); confirmation mode if manual code.
+- All code and identifiers in English.

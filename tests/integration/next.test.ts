@@ -100,7 +100,7 @@ describe("getNext — review stage", () => {
     await updateFeatureStage(db, id, "review");
     const finding = await addFinding(db, id, "Fixed bug", { pass: "technical", severity: "minor" });
     await resolveFinding(db, finding.id, "fixed");
-    await addCriterion(db, id, "All tests pass");
+    await addCriterion(db, id, "All tests pass", { force: true });
 
     const diag = await getNext(db, id);
     expect(diag.unresolvedFindings).toHaveLength(0);
@@ -116,7 +116,7 @@ describe("getNext — review stage", () => {
     await updateTaskStatus(db, id, phase.id, task.id, "done");
     await updateFeatureStage(db, id, "development");
     await updateFeatureStage(db, id, "review");
-    const criterion = await addCriterion(db, id, "All tests pass");
+    const criterion = await addCriterion(db, id, "All tests pass", { force: true });
     await checkCriterion(db, criterion.id);
 
     const diag = await getNext(db, id);

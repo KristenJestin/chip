@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { type Db } from "../db/client";
 import { type Criterion } from "../db/types";
 import { criteria } from "../db/schema";
-import { assertFeatureExists } from "../db/helpers";
+import { assertFeatureExists, ADVANCED_STAGES } from "../db/helpers";
 import { nowUnix } from "../utils/time";
 import { validate } from "./validate";
 import { AddCriterionInput, CheckCriterionInput, ListCriteriaInput } from "./schemas";
@@ -13,10 +13,22 @@ export async function addCriterion(
   db: Db,
   featureId: string,
   description: string,
-  options?: { phaseId?: number },
+  options?: { phaseId?: number; force?: boolean },
 ): Promise<Criterion> {
   validate(AddCriterionInput, { featureId, description, phaseId: options?.phaseId });
-  await assertFeatureExists(db, featureId);
+
+  // Single query: existence check + stage guard in one round-trip
+  const feature = await db.query.features.findFirst({
+    where: { id: featureId },
+    columns: { id: true, stage: true },
+  });
+  if (!feature) throw new Error(`Feature not found: ${featureId}`);
+
+  if (!options?.force && ADVANCED_STAGES.has(feature.stage)) {
+    throw new Error(
+      `Cannot add criterion: feature is in '${feature.stage}' stage. Use --force to override.`,
+    );
+  }
 
   const now = nowUnix();
   const [inserted] = await db
